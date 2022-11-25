@@ -1,0 +1,10 @@
+﻿﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+.vs
+Auth.Api/obj
+Auth.Shared/obj
+Auth.Api/Auth.Api.csproj.user
+Auth.Shared/bin
+Auth.Api/bin
