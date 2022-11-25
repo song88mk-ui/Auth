@@ -1,12 +1,14 @@
 using Auth.Api.ActionFilters;
 using Auth.Api.Identity;
 using Auth.Api.Repositories;
+using Auth.Api.Services;
 using Auth.Shared.Data.Auth;
 using Auth.Shared.Data.Auth.Entities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
@@ -18,11 +20,13 @@ var configuration = builder.Services.BuildServiceProvider().GetService<IConfigur
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
-builder.Services.AddDbContext<AuthIdentityContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Transient);
-builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<AuthIdentityContext>();
+builder.Services.AddDbContext<UserIdentityContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Transient);
+builder.Services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<UserIdentityContext>();
 
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
 builder.Services.AddScoped<ApiKeyFilter>();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IUserIdentityService, UserIdentityService>();
 
 builder.Services.AddCors(options =>
 {
@@ -61,7 +65,6 @@ builder.Services.AddSwaggerGen(option =>
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -76,5 +79,4 @@ app.UseCors();
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.Run();

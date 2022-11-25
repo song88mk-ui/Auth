@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -29,16 +30,20 @@ namespace Auth.Api.Repositories
             this._userManager = userManager;
             this._configuration = config;
         }
-        private SecurityTokenDescriptor GenerateToken(string userId, byte[] tokenKey, string issuer)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, byte[] tokenKey, string issuer)
         {
+            // Include AspNetUserClaims in Claims
+            // Include UserId in claims
+
             var claims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, userRoles => userRoles.RoleId,
                 (claims, userRoles) => new { Claims = claims, UserRoles = userRoles })
-                .Where(p => p.UserRoles.UserId == userId && p.Claims.ClaimValue != "2")
+                .Where(p => p.UserRoles.UserId == userId && p.Claims.ClaimValue != "0")
                 .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
 
             var token = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(),
+                TokenType = "bearer",
                 Expires = DateTime.UtcNow.AddMinutes(10),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = issuer
@@ -51,6 +56,8 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<TokenModel>> Authenticate(UserModel content)
         {
+            var timer = new Stopwatch();
+            timer.Start();
             try
             {
                 var user = await _userManager.FindByNameAsync(content.Name);
@@ -66,28 +73,46 @@ namespace Auth.Api.Repositories
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) == PasswordVerificationResult.Success)
                 {
-                    var tokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
-                    var issuer = _configuration["JWT:Issuer"];
-                    var token = GenerateToken(user.Id, tokenKey, issuer);
-
-                    var refresh = new SecurityTokenDescriptor
+                    var result = new Tokens();
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                     {
-                        Subject = new ClaimsIdentity(),
-                        Expires = DateTime.UtcNow.AddDays(0.5),
-                        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature),
-                        Issuer = issuer
-                    };
+                        var tokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
+                        var issuer = _configuration["JWT:Issuer"];
+                        var token = GenerateToken(user.Id, tokenKey, issuer);
 
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    var result = new Tokens()
-                    {
-                        UserId = user.Id,
-                        AccessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token)),
-                        TokenType = token.TokenType,
-                        TokenExpiration = token.Expires.Value,
-                        RefreshToken = tokenHandler.WriteToken(tokenHandler.CreateToken(refresh)),
-                        RefreshExpiration = refresh.Expires.Value,
-                    };
+                        var refresh = new SecurityTokenDescriptor
+                        {
+                            Subject = new ClaimsIdentity(),
+                            Expires = DateTime.UtcNow.AddDays(0.5),
+                            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature),
+                            Issuer = issuer
+                        };
+
+                        var tokenHandler = new JwtSecurityTokenHandler();
+
+                        result = new Tokens()
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            UserId = user.Id,
+                            AccessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result)),
+                            TokenType = token.Result.TokenType,
+                            TokenExpiration = token.Result.Expires.Value,
+                            RefreshToken = tokenHandler.WriteToken(tokenHandler.CreateToken(refresh)),
+                            RefreshExpiration = refresh.Expires.Value,
+                        };
+
+                        await _authContext.AddAsync(result);
+                        _authContext.Entry(result).State = EntityState.Added;
+
+                        _authContext.SaveChanges();
+                        scope.Complete();
+                    }
+
+                    timer.Stop();
+
+                    TimeSpan timeTaken = timer.Elapsed;
+                    string foo = "Time taken: " + timeTaken.ToString(@"m\:ss\.fff");
+                    Console.WriteLine(foo);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -184,13 +209,15 @@ namespace Auth.Api.Repositories
                     var tokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
                     var issuer = _configuration["JWT:Issuer"];
                     var token = GenerateToken(tokenEntity.UserId, tokenKey, issuer);
+
                     var tokenHandler = new JwtSecurityTokenHandler();
                     result = new Tokens()
                     {
+                        Id = Guid.NewGuid().ToString(),
                         UserId = tokenEntity.UserId,
-                        AccessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token)),
-                        TokenType = token.TokenType,
-                        TokenExpiration = token.Expires.Value,
+                        AccessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result)),
+                        TokenType = token.Result.TokenType,
+                        TokenExpiration = token.Result.Expires.Value,
                         RefreshToken = content,
                         RefreshExpiration = jsonToken.ValidTo
                     };

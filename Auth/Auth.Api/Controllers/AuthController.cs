@@ -25,7 +25,7 @@ namespace Auth.Api.Controllers
         {
             try
             {
-                var token = this._authRepository.Authenticate(usersdata).Result;
+                var token = await this._authRepository.Authenticate(usersdata);
 
                 switch (token.StatusCode)
                 {
@@ -65,5 +65,7 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
+        // Crate validate token
     }
 }
