@@ -2,6 +2,7 @@
 using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
+using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
@@ -27,9 +28,9 @@ namespace Auth.Api.Repositories
             UserManager<IdentityUser> userManager,
             IConfiguration config)
         {
-            this._authContext = authContext;
-            this._userManager = userManager;
-            this._configuration = config;
+            _authContext = authContext;
+            _userManager = userManager;
+            _configuration = config;
         }
         private async Task<SecurityTokenDescriptor> GenerateToken(string userId, byte[] tokenKey, string issuer)
         {
@@ -336,6 +337,31 @@ namespace Auth.Api.Repositories
                     Result = false
                 };
             }
+        }
+
+        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
+        {
+            var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
+
+            var permList = result.Select(a => new PermissionModel()
+            {
+                Category = a.Category,
+                Name = a.Name,
+                ClaimType = a.ClaimType,
+                HasReadOnly = a.HasReadOnly,
+                SortOrder = a.SortOrder,
+                IsSubUser = a.IsSubUser
+            }).OrderBy(x => x.Category).ThenBy(o => o.SortOrder).ToList();
+
+            return new BaseResponse<PermissionResponse>
+            {
+                StatusCode = StatusCode.Success,
+                Message = StatusCode.Success.ToString(),
+                Result = new PermissionResponse()
+                {
+                    Permissions = permList
+                }
+            };
         }
     }
 }

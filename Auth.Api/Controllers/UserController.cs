@@ -1,4 +1,5 @@
 ﻿using Auth.Api.ActionFilters;
+using Auth.Api.Repositories;
 using Auth.Api.Services;
 using Auth.Shared.Models;
 using Microsoft.AspNetCore.Cors;
@@ -13,9 +14,12 @@ namespace Auth.Api.Controllers
     public class UserController : ControllerBase
     {
         private IUserIdentityService _userIdentityService { get; set; }
-        public UserController(IUserIdentityService userIdentityService)
+        private readonly IAuthRepository _authRepository;
+
+        public UserController(IUserIdentityService userIdentityService, IAuthRepository authRepository)
         {
             _userIdentityService = userIdentityService;
+            _authRepository = _authRepository;
         }
 
         // User management (Get list, password management)
@@ -68,6 +72,18 @@ namespace Auth.Api.Controllers
 
         // Roles management (Create, update delete)
 
-        // Permission
+        [HttpGet("permission/list")]
+        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly)
+        {
+            var result = await _authRepository.GetPermissionList(isSubUserOnly);
+
+            switch (result.StatusCode)
+            {
+                case Shared.Enums.StatusCode.Success:
+                    return Ok(result);
+                default:
+                    return BadRequest(result);
+            }
+        }
     }
 }
