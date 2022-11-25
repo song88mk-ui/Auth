@@ -11,5 +11,6 @@ namespace Auth.Shared.Models
     {
         public int RowNumber { get; set; }
         public string Status { get; set; }
+        public string MainUserId { get; set; }
     }
 }

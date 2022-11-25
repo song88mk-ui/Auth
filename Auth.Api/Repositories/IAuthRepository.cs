@@ -6,5 +6,6 @@ namespace Auth.Api.Repositories
     {
         Task<BaseResponse<TokenModel>> Authenticate(UserModel content);
         Task<BaseResponse<TokenModel>> Authenticate(string content);
+        Task<BaseResponse<bool>> Validate(string content);
     }
 }

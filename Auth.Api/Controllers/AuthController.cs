@@ -4,11 +4,11 @@ using Auth.Shared.Models;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
-using System.IdentityModel.Tokens.Jwt;
+using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class AuthController : ControllerBase
@@ -19,22 +19,21 @@ namespace Auth.Api.Controllers
             this._authRepository = authRepository;
         }
 
-        [HttpPost]
-        [Route("/authenticate")]
+        [HttpPost("/authenticate")]
         public async Task<IActionResult> Authenticate(UserModel usersdata)
         {
             try
             {
-                var token = await this._authRepository.Authenticate(usersdata);
+                var result = await this._authRepository.Authenticate(usersdata);
 
-                switch (token.StatusCode)
+                switch (result.StatusCode)
                 {
-                    case Auth.Shared.Enums.StatusCode.Success:
-                        return Ok(token);
-                    case Auth.Shared.Enums.StatusCode.Unauthorized:
-                        return Unauthorized(token);
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
                     default:
-                        return BadRequest(token);
+                        return BadRequest(result);
                 }
             }
             catch (Exception ex)
@@ -42,22 +41,23 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
         [HttpGet]
         [Route("/authenticate")]
         public async Task<IActionResult> Refresh([FromQuery] string refreshToken)
         {
             try
             {
-                var token = await this._authRepository.Authenticate(refreshToken);
+                var result = await this._authRepository.Authenticate(refreshToken);
 
-                switch (token.StatusCode)
+                switch (result.StatusCode)
                 {
-                    case Auth.Shared.Enums.StatusCode.Success:
-                        return Ok(token);
-                    case Auth.Shared.Enums.StatusCode.Unauthorized:
-                        return Unauthorized(token);
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
                     default:
-                        return BadRequest(token);
+                        return BadRequest(result);
                 }
             }
             catch (Exception ex)
@@ -66,6 +66,28 @@ namespace Auth.Api.Controllers
             }
         }
 
-        // Crate validate token
+        [HttpGet]
+        [Route("/validate")]
+        public async Task<IActionResult> Validate([FromQuery] string token)
+        {
+            try
+            {
+                var result = await this._authRepository.Authenticate(token);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
     }
 }

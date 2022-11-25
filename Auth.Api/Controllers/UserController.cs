@@ -1,19 +1,15 @@
 ﻿using Auth.Api.ActionFilters;
 using Auth.Api.Services;
-using Auth.Shared.Data.Auth;
 using Auth.Shared.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
-using System.Text.Json;
+using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
-    [Authorize]
     public class UserController : ControllerBase
     {
         private IUserIdentityService _userIdentityService { get; set; }
@@ -32,9 +28,9 @@ namespace Auth.Api.Controllers
 
                 switch (result.StatusCode)
                 {
-                    case Shared.Enums.StatusCode.Success:
+                    case AuthStatusCode.Success:
                         return Ok(result);
-                    case Shared.Enums.StatusCode.Unauthorized:
+                    case AuthStatusCode.Unauthorized:
                         return Unauthorized(result);
                     default:
                         return BadRequest(result);
@@ -54,9 +50,9 @@ namespace Auth.Api.Controllers
 
                 switch (result.StatusCode)
                 {
-                    case Shared.Enums.StatusCode.Success:
+                    case AuthStatusCode.Success:
                         return Ok(result);
-                    case Shared.Enums.StatusCode.Unauthorized:
+                    case AuthStatusCode.Unauthorized:
                         return Unauthorized(result);
                     default:
                         return BadRequest(result);

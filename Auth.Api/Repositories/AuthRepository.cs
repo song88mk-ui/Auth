@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
+using System.Reflection.Metadata;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -54,6 +55,63 @@ namespace Auth.Api.Repositories
             }
             return token;
         }
+        private BaseResponse<bool> ValidateJwtToken(string token, out SecurityToken jwtToken)
+        {
+            jwtToken = null;
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Empty Token.",
+                    Result = false
+                };
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            jwtToken = handler.ReadToken(token);
+
+            if (jwtToken == null)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Invalid Token.",
+                    Result = false
+                };
+            }
+
+            // Expired
+            if (jwtToken.ValidTo < DateTime.UtcNow)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Expired Token.",
+                    Result = false
+                };
+            }
+
+            // Invalid Isuer
+            if (jwtToken.Issuer != _configuration["JWT:Issuer"])
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Invalid Issuer.",
+                    Result = false
+                };
+            }
+
+            return new BaseResponse<bool>
+            {
+                StatusCode = StatusCode.Success,
+                Message = StatusCode.Success.ToString(),
+                Result = true
+            };
+        }
+
         public async Task<BaseResponse<TokenModel>> Authenticate(UserModel content)
         {
             var timer = new Stopwatch();
@@ -147,97 +205,73 @@ namespace Auth.Api.Repositories
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(content))
-                {
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Empty Token.",
-                        Result = null
-                    };
-                }
+                var validatedToken = ValidateJwtToken(content, out SecurityToken jsonToken);
 
-                var handler = new JwtSecurityTokenHandler();
-                var jsonToken = handler.ReadToken(content);
-
-                if (jsonToken == null)
+                if (validatedToken.Result)
                 {
-                    return new BaseResponse<TokenModel>
+                    var result = new UserTokens();
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                     {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Invalid Token.",
-                        Result = null
-                    };
-                }
-
-                // Expired
-                if (jsonToken.ValidTo < DateTime.UtcNow)
-                {
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Expired Token.",
-                        Result = null
-                    };
-                }
-
-                // Invalid Isuer
-                if (jsonToken.Issuer != _configuration["JWT:Issuer"])
-                {
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Invalid Issuer.",
-                        Result = null
-                    };
-                }
-
-                var result = new UserTokens();
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
-                {
-                    var tokenEntity = _authContext.Tokens.Where(x => x.RefreshExpiration > DateTime.UtcNow && x.RefreshToken == content).FirstOrDefault();
-                    if (tokenEntity == null)
-                    {
-                        return new BaseResponse<TokenModel>
+                        var tokenEntity = _authContext.UserTokens.Where(x => x.RefreshToken == content).FirstOrDefault();
+                        if (tokenEntity == null)
                         {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Invalid Token.",
+                                Result = null
+                            };
+                        }
+                        if (tokenEntity.TokenExpiration < DateTime.UtcNow)
+                        {
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Expired Token.",
+                                Result = null
+                            };
+                        }
+
+                        var tokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
+                        var issuer = _configuration["JWT:Issuer"];
+                        var token = GenerateToken(tokenEntity.UserId, tokenKey, issuer);
+
+                        var tokenHandler = new JwtSecurityTokenHandler();
+                        result = new UserTokens()
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            UserId = tokenEntity.UserId,
+                            AccessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result)),
+                            TokenType = token.Result.TokenType,
+                            TokenExpiration = token.Result.Expires.Value,
+                            RefreshToken = content,
+                            RefreshExpiration = jsonToken.ValidTo
                         };
+
+                        await _authContext.AddAsync(result);
+                        _authContext.Entry(result).State = EntityState.Added;
+
+                        _authContext.SaveChanges();
+                        scope.Complete();
                     }
 
-                    var tokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
-                    var issuer = _configuration["JWT:Issuer"];
-                    var token = GenerateToken(tokenEntity.UserId, tokenKey, issuer);
-
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    result = new UserTokens()
+                    return new BaseResponse<TokenModel>
                     {
-                        Id = Guid.NewGuid().ToString(),
-                        UserId = tokenEntity.UserId,
-                        AccessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result)),
-                        TokenType = token.Result.TokenType,
-                        TokenExpiration = token.Result.Expires.Value,
-                        RefreshToken = content,
-                        RefreshExpiration = jsonToken.ValidTo
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new TokenModel()
+                        {
+                            Token = result.AccessToken,
+                            Refresh = result.RefreshToken
+                        }
                     };
-
-                    await _authContext.AddAsync(result);
-                    _authContext.Entry(result).State = EntityState.Added;
-
-                    _authContext.SaveChanges();
-                    scope.Complete();
                 }
 
                 return new BaseResponse<TokenModel>
                 {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new TokenModel()
-                    {
-                        Token = result.AccessToken,
-                        Refresh = result.RefreshToken
-                    }
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = validatedToken.Message,
+                    Result = null
                 };
             }
             catch (Exception ex)
@@ -247,6 +281,59 @@ namespace Auth.Api.Repositories
                     StatusCode = StatusCode.Error,
                     Message = ex.Message,
                     Result = null
+                };
+            }
+        }
+        public async Task<BaseResponse<bool>> Validate(string content)
+        {
+            try
+            {
+                var validatedToken = ValidateJwtToken(content, out SecurityToken jsonToken);
+
+                if (validatedToken.Result)
+                {
+                    var tokenEntity = _authContext.UserTokens.Where(x => x.AccessToken == content).FirstOrDefault();
+                    if (tokenEntity == null)
+                    {
+                        return new BaseResponse<bool>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Invalid Token.",
+                            Result = false
+                        };
+                    }
+                    if (tokenEntity.TokenExpiration < DateTime.UtcNow)
+                    {
+                        return new BaseResponse<bool>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Expired Token.",
+                            Result = false
+                        };
+                    }
+
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
+                    };
+                }
+
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = validatedToken.Message,
+                    Result = false
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = ex.Message,
+                    Result = false
                 };
             }
         }
