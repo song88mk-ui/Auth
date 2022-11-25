@@ -73,7 +73,7 @@ namespace Auth.Api.Repositories
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) == PasswordVerificationResult.Success)
                 {
-                    var result = new Tokens();
+                    var result = new UserTokens();
                     using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                     {
                         var tokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
@@ -90,7 +90,7 @@ namespace Auth.Api.Repositories
 
                         var tokenHandler = new JwtSecurityTokenHandler();
 
-                        result = new Tokens()
+                        result = new UserTokens()
                         {
                             Id = Guid.NewGuid().ToString(),
                             UserId = user.Id,
@@ -192,7 +192,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var result = new Tokens();
+                var result = new UserTokens();
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                 {
                     var tokenEntity = _authContext.Tokens.Where(x => x.RefreshExpiration > DateTime.UtcNow && x.RefreshToken == content).FirstOrDefault();
@@ -211,7 +211,7 @@ namespace Auth.Api.Repositories
                     var token = GenerateToken(tokenEntity.UserId, tokenKey, issuer);
 
                     var tokenHandler = new JwtSecurityTokenHandler();
-                    result = new Tokens()
+                    result = new UserTokens()
                     {
                         Id = Guid.NewGuid().ToString(),
                         UserId = tokenEntity.UserId,
