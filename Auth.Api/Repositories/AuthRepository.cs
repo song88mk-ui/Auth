@@ -6,6 +6,7 @@ using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -34,13 +35,6 @@ namespace Auth.Api.Repositories
         }
         private async Task<SecurityTokenDescriptor> GenerateToken(string userId, byte[] tokenKey, string issuer)
         {
-            // Include AspNetUserClaims in Claims
-            // Include UserId in claims
-
-            var claims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, userRoles => userRoles.RoleId,
-                (claims, userRoles) => new { Claims = claims, UserRoles = userRoles })
-                .Where(p => p.UserRoles.UserId == userId && p.Claims.ClaimValue != "0")
-                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
 
             var token = new SecurityTokenDescriptor
             {
@@ -50,10 +44,35 @@ namespace Auth.Api.Repositories
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = issuer
             };
+            token.Subject.AddClaim(new Claim("UserId", userId));
+
+            var userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
+                (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
+                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
+
+            foreach (var item in userClaims)
+            {
+                if (item.ClaimType == Shared.Enums.ClaimTypes.SportsbookClient_Client_Access.ToString().Replace("_", "."))
+                {
+                    token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
+                }
+                else
+                {
+                    token.Subject.AddClaim(new Claim(item.ClaimType.ToString(), item.ClaimValue.ToString()));
+                }
+            }
+
+            var claims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, userRoles => userRoles.RoleId,
+                (claims, userRoles) => new { Claims = claims, UserRoles = userRoles })
+                .Where(p => p.UserRoles.UserId == userId && p.Claims.ClaimValue != "0")
+                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
+
             foreach (var item in claims)
             {
                 token.Subject.AddClaim(new Claim(item.ClaimType.ToString(), item.ClaimValue.ToString()));
             }
+
             return token;
         }
         private BaseResponse<bool> ValidateJwtToken(string token, out SecurityToken jwtToken)
@@ -179,8 +198,8 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
-                            Token = result.AccessToken,
-                            Refresh = result.RefreshToken
+                            AccessToken = result.AccessToken,
+                            RefreshToken = result.RefreshToken
                         }
                     };
                 }
@@ -262,8 +281,8 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
-                            Token = result.AccessToken,
-                            Refresh = result.RefreshToken
+                            AccessToken = result.AccessToken,
+                            RefreshToken = result.RefreshToken
                         }
                     };
                 }

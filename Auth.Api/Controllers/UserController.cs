@@ -19,7 +19,7 @@ namespace Auth.Api.Controllers
         public UserController(IUserIdentityService userIdentityService, IAuthRepository authRepository)
         {
             _userIdentityService = userIdentityService;
-            _authRepository = _authRepository;
+            _authRepository = authRepository;
         }
 
         // User management (Get list, password management)

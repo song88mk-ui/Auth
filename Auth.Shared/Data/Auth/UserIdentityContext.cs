@@ -10,9 +10,7 @@ namespace Auth.Shared.Data.Auth
 {
     public class UserIdentityContext : IdentityDbContext
     {
-        public UserIdentityContext(DbContextOptions options) : base(options)
-        {
-        }
+        public UserIdentityContext(DbContextOptions options) : base(options) { }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
