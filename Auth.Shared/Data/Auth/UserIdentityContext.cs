@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Auth.Shared.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -8,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace Auth.Shared.Data.Auth
 {
-    public class UserIdentityContext : IdentityDbContext
+    public class UserIdentityContext : IdentityDbContext<AppUser>
     {
-        public UserIdentityContext(DbContextOptions options) : base(options) { }
+        public UserIdentityContext(DbContextOptions<UserIdentityContext> options) : base(options) { }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

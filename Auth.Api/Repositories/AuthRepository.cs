@@ -24,9 +24,9 @@ namespace Auth.Api.Repositories
     {
         private IConfiguration _configuration { get; set; }
         private AuthContext _authContext { get; set; }
-        private UserManager<IdentityUser> _userManager;
+        private UserManager<AppUser> _userManager;
         public AuthRepository(AuthContext authContext,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             IConfiguration config)
         {
             _authContext = authContext;
