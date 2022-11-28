@@ -71,6 +71,29 @@ namespace Auth.Api.Controllers
 
         // Roles management (Create, update delete)
 
+        [HttpGet("{userId}")]
+        public async Task<IActionResult> GetCurrentUser(string userId)
+        {
+            try
+            {
+                var result = await _userIdentityService.GetCurrentUser(userId);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
         [HttpPost("subaccount/list")]
         public async Task<IActionResult> GetSubAccounts([FromBody] SubAccountListRequest request)
         {
