@@ -319,17 +319,17 @@ namespace Auth.Api.Services
 
         }
 
-        public async Task<BaseResponse<bool>> AddAspNetUsers(AppUser request, string roleName)
+        public async Task<BaseResponse<bool>> AddAspNetUsers(UserComposeRequest request)
         {
             try
             {
                 //request.EmailConfirmed = true;
-                request.EmailConfirmed = request.Status == "Normal" ? true : false;
+                request.User.EmailConfirmed = request.Status == "Normal" ? true : false;
                 //var isvalid = await _userManager.UserValidators(request);
-                IdentityResult result = await _userManager.CreateAsync(request, request.PasswordHash);
+                IdentityResult result = await _userManager.CreateAsync(request.User, request.User.PasswordHash);
                 if (result.Succeeded)
                 {
-                    var addRole = await _userManager.AddToRoleAsync(request, roleName);
+                    var addRole = await _userManager.AddToRoleAsync(request.User, request.RoleName);
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
@@ -364,14 +364,14 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> UpdateAspNetUsers(AppUser request, string roleName, bool isDefault = false)
+        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserComposeRequest request, bool isDefault = false)
         {
             try
             {
-                var user = (await _userManager.FindByIdAsync(request.Id));
+                var user = (await _userManager.FindByIdAsync(request.User.Id));
                 if (!isDefault)
                 {
-                    user.Email = request.Email;
+                    user.Email = request.User.Email;
                     user.EmailConfirmed = request.Status == "Normal" ? true : false;
                 }
 
@@ -403,7 +403,7 @@ namespace Auth.Api.Services
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
-                var addRole = await _userManager.AddToRoleAsync(user, roleName);
+                var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
                 var result = await _userManager.UpdateAsync(user);
 
@@ -624,7 +624,9 @@ namespace Auth.Api.Services
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
                 {
-                    var addResult = await UpdateAspNetUsers(user, "Default", true);
+                    var userRequest = new UserComposeRequest { User = user, RoleName = "Default" };
+
+                    var addResult = await UpdateAspNetUsers(userRequest, true);
                 }
                 //var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
                 //var addRole = await _userManager.AddToRoleAsync(user, roleName);

@@ -25,11 +25,11 @@ namespace Auth.Api.Controllers
 
         // User management (Get list, password management)
         [HttpPost("register")]
-        public async Task<IActionResult> Create([FromBody] UserComposeRequest user)
+        public async Task<IActionResult> Create([FromBody] UserComposeRequest request)
         {
             try
             {
-                var result = await _userIdentityService.AddAspNetUsers(user.User, user.RoleName);
+                var result = await _userIdentityService.AddAspNetUsers(request);
 
                 switch (result.StatusCode)
                 {
@@ -47,11 +47,11 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpPost("modify")]
-        public async Task<IActionResult> Update([FromBody] UserComposeRequest user)
+        public async Task<IActionResult> Update([FromBody] UserComposeRequest request)
         {
             try
             {
-                var result = await _userIdentityService.UpdateAspNetUsers(user.User, user.RoleName);
+                var result = await _userIdentityService.UpdateAspNetUsers(request);
 
                 switch (result.StatusCode)
                 {
