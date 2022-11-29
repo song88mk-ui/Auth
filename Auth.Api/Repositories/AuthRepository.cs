@@ -63,16 +63,6 @@ namespace Auth.Api.Repositories
                 }
             }
 
-            var claims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, userRoles => userRoles.RoleId,
-                (claims, userRoles) => new { Claims = claims, UserRoles = userRoles })
-                .Where(p => p.UserRoles.UserId == userId && p.Claims.ClaimValue != "0")
-                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
-
-            foreach (var item in claims)
-            {
-                token.Subject.AddClaim(new Claim(item.ClaimType.ToString(), item.ClaimValue.ToString()));
-            }
-
             return token;
         }
         private BaseResponse<bool> ValidateJwtToken(string token, out SecurityToken jwtToken)

@@ -19,6 +19,7 @@ namespace Auth.Api.ActionFilters
             {
                 context.Result = new BadRequestObjectResult(new
                 {
+                    Title = "Unauthorized",
                     StatusCode = StatusCodes.Status401Unauthorized,
                     Message = "Missing Or Unsupported APIKey In Request Headers",
                 });

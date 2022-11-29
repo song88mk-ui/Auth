@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Auth.Shared.Data.Auth
 {
-    public class UserIdentityContext : IdentityDbContext<AppUser>
+    public sealed class UserIdentityContext : IdentityDbContext<AppUser>
     {
         public UserIdentityContext(DbContextOptions<UserIdentityContext> options) : base(options) { }
         protected override void OnModelCreating(ModelBuilder builder)

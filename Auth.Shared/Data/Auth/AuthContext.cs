@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Auth.Shared.Data.Auth
 {
-    public class AuthContext : DbContext
+    public sealed class AuthContext : DbContext
     {
         public AuthContext(DbContextOptions<AuthContext> options) : base(options) { }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
