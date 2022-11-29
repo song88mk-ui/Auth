@@ -72,7 +72,7 @@ namespace Auth.Api.Controllers
         {
             try
             {
-                var result = await this._authRepository.Authenticate(token);
+                var result = await this._authRepository.Validate(token);
 
                 switch (result.StatusCode)
                 {
