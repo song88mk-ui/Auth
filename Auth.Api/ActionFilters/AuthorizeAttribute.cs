@@ -1,8 +1,10 @@
 ﻿using Auth.Api.Repositories;
 using Auth.Shared.Models;
+using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace Auth.Api.ActionFilters
@@ -22,9 +24,12 @@ namespace Auth.Api.ActionFilters
 
             if (!validToken.Result)
             {
-                context.Result = new JsonResult(new { title = "Unauthorized", message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
+                context.Result = new JsonResult(new { Title = "Unauthorized", Message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
             }
+
+            var claims = JwtParser.ParseClaimsFromJwt(token);
+            var jsonData = JsonSerializer.Serialize(claims);
         }
     }
 }

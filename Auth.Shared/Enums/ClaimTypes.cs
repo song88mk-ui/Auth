@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 
 namespace Auth.Shared.Enums
 {
-    // Include claim types
-    internal class ClaimTypes
+    public enum ClaimTypes
     {
+        SportsbookClient_Client_Access,
+        SportsbookClient_TopLeagues_Access,
+        SportsbookClient_TopFixtures_Access,
+        SportsbookClient_ParlayBonus_Access,
     }
 }

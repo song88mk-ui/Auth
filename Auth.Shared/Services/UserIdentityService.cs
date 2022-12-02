@@ -1,6 +1,8 @@
 ﻿using Auth.Shared.Data.Auth;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
+using Auth.Shared.Models.Request;
+using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -11,13 +13,13 @@ namespace Auth.Api.Services
     public class UserIdentityService : IUserIdentityService, IDisposable
     {
         #region Fields
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly UserIdentityContext _userIdentityContext;
         #endregion
 
         #region Ctor
-        public UserIdentityService(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext)
+        public UserIdentityService(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -26,7 +28,7 @@ namespace Auth.Api.Services
         #endregion
 
         #region Methods
-        public async Task<List<IdentityUser>> GetAspNetUsersList(string search = "", bool showSuperAdmin = false)
+        public async Task<BaseResponse<UserListResponse>> GetAspNetUsersList(string search = "", bool showSuperAdmin = false)
         {
             try
             {
@@ -38,7 +40,15 @@ namespace Auth.Api.Services
                 if (!showSuperAdmin)
                     result = result.Where(result => result.UserName.ToLower() != "fci-admin");
 
-                return result.ToList();
+                return new BaseResponse<UserListResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new UserListResponse()
+                    {
+                        Users = result.ToList()
+                    }
+                };
             }
             catch (Exception ex)
             {
@@ -46,6 +56,44 @@ namespace Auth.Api.Services
             }
 
         }
+
+        public async Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request)
+        {
+            try
+            {
+                var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId);
+
+                var users = new List<AppUser>();
+                if (request.Page > 0 && request.PageSize > 0)
+                {
+                    var rowCount = result.Count();
+                    var skip = (request.Page - 1) * request.PageSize;
+
+                    users = result.Skip(skip).Take(request.PageSize).ToList();
+                }
+
+                return new BaseResponse<UserListResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new UserListResponse
+                    {
+                        Users = users
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<UserListResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})",
+                    Result = new UserListResponse()
+                };
+            }
+
+        }
+
         public async Task<List<AppRole>> GetAspNetRolesList(string search = "", bool showSuperAdmin = false)
         {
             try
@@ -271,17 +319,17 @@ namespace Auth.Api.Services
 
         }
 
-        public async Task<BaseResponse<bool>> AddAspNetUsers(AppUser request, string roleName)
+        public async Task<BaseResponse<bool>> AddAspNetUsers(UserComposeRequest request)
         {
             try
             {
                 //request.EmailConfirmed = true;
-                request.EmailConfirmed = request.Status == "Normal" ? true : false;
+                request.User.EmailConfirmed = request.Status == "Normal" ? true : false;
                 //var isvalid = await _userManager.UserValidators(request);
-                IdentityResult result = await _userManager.CreateAsync(request, request.PasswordHash);
+                IdentityResult result = await _userManager.CreateAsync(request.User, request.User.PasswordHash);
                 if (result.Succeeded)
                 {
-                    var addRole = await _userManager.AddToRoleAsync(request, roleName);
+                    var addRole = await _userManager.AddToRoleAsync(request.User, request.RoleName);
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
@@ -316,14 +364,14 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> UpdateAspNetUsers(AppUser request, string roleName, bool isDefault = false)
+        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserComposeRequest request, bool isDefault = false)
         {
             try
             {
-                var user = (await _userManager.FindByIdAsync(request.Id));
+                var user = (await _userManager.FindByIdAsync(request.User.Id));
                 if (!isDefault)
                 {
-                    user.Email = request.Email;
+                    user.Email = request.User.Email;
                     user.EmailConfirmed = request.Status == "Normal" ? true : false;
                 }
 
@@ -355,7 +403,7 @@ namespace Auth.Api.Services
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
-                var addRole = await _userManager.AddToRoleAsync(user, roleName);
+                var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
                 var result = await _userManager.UpdateAsync(user);
 
@@ -400,7 +448,7 @@ namespace Auth.Api.Services
 
                 if (request.PasswordHash != null)
                 {
-                    var passwordValidator = new PasswordValidator<IdentityUser>();
+                    var passwordValidator = new PasswordValidator<AppUser>();
                     var isValid = await passwordValidator.ValidateAsync(_userManager, null, request.PasswordHash);
 
                     if (isValid.Succeeded)
@@ -576,7 +624,9 @@ namespace Auth.Api.Services
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
                 {
-                    var addResult = await UpdateAspNetUsers(user, "Default", true);
+                    var userRequest = new UserComposeRequest { User = user, RoleName = "Default" };
+
+                    var addResult = await UpdateAspNetUsers(userRequest, true);
                 }
                 //var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
                 //var addRole = await _userManager.AddToRoleAsync(user, roleName);
@@ -616,13 +666,13 @@ namespace Auth.Api.Services
             }
         }
 
-        public async Task<BaseResponse<IdentityUser>> GetCurrentUser(ClaimsPrincipal principal)
+        public async Task<BaseResponse<AppUser>> GetCurrentUser(ClaimsPrincipal principal)
         {
             try
             {
                 var user = await _userManager.GetUserAsync(principal);
 
-                return new BaseResponse<IdentityUser>
+                return new BaseResponse<AppUser>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
@@ -631,14 +681,14 @@ namespace Auth.Api.Services
             }
             catch (Exception ex)
             {
-                return new BaseResponse<IdentityUser>
+                return new BaseResponse<AppUser>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
                 };
             }
         }
-        public async Task<BaseResponse<IdentityRole>> GetCurrentUserRole(IdentityUser user)
+        public async Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user)
         {
             try
             {
@@ -682,13 +732,13 @@ namespace Auth.Api.Services
                 return null;
             }
         }
-        public async Task<BaseResponse<IdentityUser>> GetCurrentUser(string userId)
+        public async Task<BaseResponse<AppUser>> GetCurrentUser(string userId)
         {
             try
             {
                 var user = await _userManager.FindByIdAsync(userId);
 
-                return new BaseResponse<IdentityUser>
+                return new BaseResponse<AppUser>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
@@ -697,14 +747,14 @@ namespace Auth.Api.Services
             }
             catch (Exception ex)
             {
-                return new BaseResponse<IdentityUser>
+                return new BaseResponse<AppUser>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
                 };
             }
         }
-        public async Task<BaseResponse<bool>> ChangePassword(IdentityUser user, string currentPassword, string newPassword)
+        public async Task<BaseResponse<bool>> ChangePassword(AppUser user, string currentPassword, string newPassword)
         {
             try
             {

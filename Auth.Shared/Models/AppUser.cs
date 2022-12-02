@@ -9,8 +9,6 @@ namespace Auth.Shared.Models
 {
     public class AppUser : IdentityUser
     {
-        public int RowNumber { get; set; }
-        public string Status { get; set; }
         public string MainUserId { get; set; }
     }
 }

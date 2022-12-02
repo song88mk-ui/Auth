@@ -10,5 +10,6 @@ namespace Auth.Shared.Models
     {
         public AppUser User { get; set; }
         public string RoleName { get; set; }
+        public string Status { get; set; }
     }
 }

@@ -8,7 +8,7 @@ namespace Auth.Shared.Models
 {
     public class TokenModel
     {
-        public string Token { get; set; }
-        public string Refresh { get; set; }
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
     }
 }

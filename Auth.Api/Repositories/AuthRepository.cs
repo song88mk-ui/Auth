@@ -2,9 +2,11 @@
 using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
+using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -22,24 +24,17 @@ namespace Auth.Api.Repositories
     {
         private IConfiguration _configuration { get; set; }
         private AuthContext _authContext { get; set; }
-        private UserManager<IdentityUser> _userManager;
+        private UserManager<AppUser> _userManager;
         public AuthRepository(AuthContext authContext,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             IConfiguration config)
         {
-            this._authContext = authContext;
-            this._userManager = userManager;
-            this._configuration = config;
+            _authContext = authContext;
+            _userManager = userManager;
+            _configuration = config;
         }
         private async Task<SecurityTokenDescriptor> GenerateToken(string userId, byte[] tokenKey, string issuer)
         {
-            // Include AspNetUserClaims in Claims
-            // Include UserId in claims
-
-            var claims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, userRoles => userRoles.RoleId,
-                (claims, userRoles) => new { Claims = claims, UserRoles = userRoles })
-                .Where(p => p.UserRoles.UserId == userId && p.Claims.ClaimValue != "0")
-                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
 
             var token = new SecurityTokenDescriptor
             {
@@ -49,10 +44,25 @@ namespace Auth.Api.Repositories
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = issuer
             };
-            foreach (var item in claims)
+            token.Subject.AddClaim(new Claim("UserId", userId));
+
+            var userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
+                (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
+                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
+
+            foreach (var item in userClaims)
             {
-                token.Subject.AddClaim(new Claim(item.ClaimType.ToString(), item.ClaimValue.ToString()));
+                if (item.ClaimType == Shared.Enums.ClaimTypes.SportsbookClient_Client_Access.ToString().Replace("_", "."))
+                {
+                    token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
+                }
+                else
+                {
+                    token.Subject.AddClaim(new Claim(item.ClaimType.ToString(), item.ClaimValue.ToString()));
+                }
             }
+
             return token;
         }
         private BaseResponse<bool> ValidateJwtToken(string token, out SecurityToken jwtToken)
@@ -179,8 +189,8 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
-                            Token = result.AccessToken,
-                            Refresh = result.RefreshToken
+                            AccessToken = result.AccessToken,
+                            RefreshToken = result.RefreshToken
                         }
                     };
                 }
@@ -262,8 +272,8 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
-                            Token = result.AccessToken,
-                            Refresh = result.RefreshToken
+                            AccessToken = result.AccessToken,
+                            RefreshToken = result.RefreshToken
                         }
                     };
                 }
@@ -337,6 +347,31 @@ namespace Auth.Api.Repositories
                     Result = false
                 };
             }
+        }
+
+        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
+        {
+            var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
+
+            var permList = result.Select(a => new PermissionModel()
+            {
+                Category = a.Category,
+                Name = a.Name,
+                ClaimType = a.ClaimType,
+                HasReadOnly = a.HasReadOnly,
+                SortOrder = a.SortOrder,
+                IsSubUser = a.IsSubUser
+            }).OrderBy(x => x.Category).ThenBy(o => o.SortOrder).ToList();
+
+            return new BaseResponse<PermissionResponse>
+            {
+                StatusCode = StatusCode.Success,
+                Message = StatusCode.Success.ToString(),
+                Result = new PermissionResponse()
+                {
+                    Permissions = permList
+                }
+            };
         }
     }
 }

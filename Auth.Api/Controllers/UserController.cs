@@ -1,6 +1,8 @@
 ﻿using Auth.Api.ActionFilters;
+using Auth.Api.Repositories;
 using Auth.Api.Services;
 using Auth.Shared.Models;
+using Auth.Shared.Models.Request;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
@@ -13,18 +15,21 @@ namespace Auth.Api.Controllers
     public class UserController : ControllerBase
     {
         private IUserIdentityService _userIdentityService { get; set; }
-        public UserController(IUserIdentityService userIdentityService)
+        private readonly IAuthRepository _authRepository;
+
+        public UserController(IUserIdentityService userIdentityService, IAuthRepository authRepository)
         {
             _userIdentityService = userIdentityService;
+            _authRepository = authRepository;
         }
 
         // User management (Get list, password management)
         [HttpPost("register")]
-        public async Task<IActionResult> Create([FromBody] UserComposeRequest user)
+        public async Task<IActionResult> Create([FromBody] UserComposeRequest request)
         {
             try
             {
-                var result = await this._userIdentityService.AddAspNetUsers(user.User, user.RoleName);
+                var result = await _userIdentityService.AddAspNetUsers(request);
 
                 switch (result.StatusCode)
                 {
@@ -42,11 +47,11 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpPost("modify")]
-        public async Task<IActionResult> Update([FromBody] UserComposeRequest user)
+        public async Task<IActionResult> Update([FromBody] UserComposeRequest request)
         {
             try
             {
-                var result = await this._userIdentityService.UpdateAspNetUsers(user.User, user.RoleName);
+                var result = await _userIdentityService.UpdateAspNetUsers(request);
 
                 switch (result.StatusCode)
                 {
@@ -64,10 +69,66 @@ namespace Auth.Api.Controllers
             }
         }
 
-        // Sub management (Create, Get List user base)
-
         // Roles management (Create, update delete)
 
-        // Permission
+        [HttpGet("{userId}")]
+        public async Task<IActionResult> GetCurrentUser(string userId)
+        {
+            try
+            {
+                var result = await _userIdentityService.GetCurrentUser(userId);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+        [HttpPost("subaccount/list")]
+        public async Task<IActionResult> GetSubAccounts([FromBody] SubAccountListRequest request)
+        {
+            try
+            {
+                var result = await _userIdentityService.GetAspNetSubAccountList(request);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+        [HttpGet("permission/list")]
+        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly)
+        {
+            var result = await _authRepository.GetPermissionList(isSubUserOnly);
+
+            switch (result.StatusCode)
+            {
+                case Shared.Enums.StatusCode.Success:
+                    return Ok(result);
+                default:
+                    return BadRequest(result);
+            }
+        }
     }
 }
