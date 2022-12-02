@@ -138,6 +138,7 @@ namespace Auth.Api.Repositories
                         var issuer = _configuration["JWT:Issuer"];
                         var token = GenerateToken(user.Id, tokenKey, issuer);
 
+                        // 20 min refresh expiration
                         var refresh = new SecurityTokenDescriptor
                         {
                             Subject = new ClaimsIdentity(),
