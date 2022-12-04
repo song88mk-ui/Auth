@@ -19,12 +19,12 @@ namespace Auth.Api.Controllers
             this._authRepository = authRepository;
         }
 
-        [HttpPost("/authenticate")]
-        public async Task<IActionResult> Authenticate(UserModel usersdata)
+        [HttpPost("/login")]
+        public async Task<IActionResult> Login(UserModel usersdata)
         {
             try
             {
-                var result = await this._authRepository.Authenticate(usersdata);
+                var result = await this._authRepository.Login(usersdata);
 
                 switch (result.StatusCode)
                 {
@@ -44,35 +44,11 @@ namespace Auth.Api.Controllers
 
         [HttpGet]
         [Route("/authenticate")]
-        public async Task<IActionResult> Refresh([FromQuery] string refreshToken)
+        public async Task<IActionResult> Authenticate([FromQuery] string token)
         {
             try
             {
-                var result = await this._authRepository.Authenticate(refreshToken);
-
-                switch (result.StatusCode)
-                {
-                    case AuthStatusCode.Success:
-                        return Ok(result);
-                    case AuthStatusCode.Unauthorized:
-                        return Unauthorized(result);
-                    default:
-                        return BadRequest(result);
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
-            }
-        }
-
-        [HttpGet]
-        [Route("/validate")]
-        public async Task<IActionResult> Validate([FromQuery] string token)
-        {
-            try
-            {
-                var result = await this._authRepository.Validate(token);
+                var result = await this._authRepository.Authenticate(token);
 
                 switch (result.StatusCode)
                 {

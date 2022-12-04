@@ -5,9 +5,8 @@ namespace Auth.Api.Repositories
 {
     public interface IAuthRepository
     {
-        Task<BaseResponse<TokenModel>> Authenticate(UserModel content);
-        Task<BaseResponse<TokenModel>> Authenticate(string content);
-        Task<BaseResponse<bool>> Validate(string content);
+        Task<BaseResponse<TokenModel>> Login(UserModel content);
+        Task<BaseResponse<TokenModel>> Authenticate(string token);
         Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly);
     }
 }

@@ -13,8 +13,8 @@ namespace Auth.Shared.Data.Auth
             modelBuilder.Entity<AspNetUserClaims>().HasKey(k => new { k.Id });
             modelBuilder.Entity<AspNetUserRoles>().HasKey(k => new { k.UserId });
             modelBuilder.Entity<AspNetUsers>().HasKey(k => new { k.Id });
+            modelBuilder.Entity<AspNetUserTokens>().HasKey(k => new { k.UserId, k.LoginProvider, k.Name });
             modelBuilder.Entity<Permission>().HasKey(k => new { k.PermissionId });
-            modelBuilder.Entity<UserTokens>().HasKey(k => new { k.Id });
         }
         public DbSet<AspNetRoleClaims> AspNetRoleClaims { get; set; }
         public DbSet<AspNetRoles> AspNetRoles { get; set; }
@@ -22,6 +22,6 @@ namespace Auth.Shared.Data.Auth
         public DbSet<AspNetUserRoles> AspNetUserRoles { get; set; }
         public DbSet<AspNetUsers> AspNetUsers { get; set; }
         public DbSet<Permission> Permission { get; set; }
-        public DbSet<UserTokens> UserTokens { get; set; }
+        public DbSet<AspNetUserTokens> AspNetUserTokens { get; set; }
     }
 }

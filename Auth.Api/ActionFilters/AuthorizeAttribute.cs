@@ -20,9 +20,9 @@ namespace Auth.Api.ActionFilters
             var token = context.HttpContext.Request.Headers[HeaderNames.Authorization].ToString().Replace("Bearer ", "");
             var authRepository = (IAuthRepository)context.HttpContext.RequestServices.GetService(typeof(IAuthRepository));
 
-            var validToken = await authRepository.Validate(token);
+            var validToken = await authRepository.Authenticate(token);
 
-            if (!validToken.Result)
+            if (validToken.Result.AccessToken != null)
             {
                 context.Result = new JsonResult(new { Title = "Unauthorized", Message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
