@@ -54,7 +54,7 @@ namespace Auth.Api.Repositories
             {
                 Subject = new ClaimsIdentity(),
                 TokenType = "bearer",
-                Expires = DateTime.UtcNow.AddSeconds(5),
+                Expires = DateTime.UtcNow.AddMinutes(10),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = Issuer
             };
