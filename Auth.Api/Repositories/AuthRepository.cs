@@ -77,7 +77,7 @@ namespace Auth.Api.Repositories
 
             return token;
         }
-        public async Task<BaseResponse<TokenModel>> Login(UserModel content)
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
         {
             try
             {

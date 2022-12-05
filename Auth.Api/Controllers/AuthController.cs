@@ -20,7 +20,7 @@ namespace Auth.Api.Controllers
         }
 
         [HttpPost("/login")]
-        public async Task<IActionResult> Login(UserModel usersdata)
+        public async Task<IActionResult> Login(LoginModel usersdata)
         {
             try
             {

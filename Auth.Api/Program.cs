@@ -16,7 +16,6 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Services.BuildServiceProvider().GetService<IConfiguration>();
 
 // Add services to the container.
-builder.Services.AddControllers();
 builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
 builder.Services.AddDbContext<UserIdentityContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Transient);
 builder.Services.AddIdentity<AppUser, IdentityRole>().AddEntityFrameworkStores<UserIdentityContext>()
@@ -26,6 +25,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuth
 builder.Services.AddScoped<ApiKeyFilter>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IUserIdentityService, UserIdentityService>();
+builder.Services.AddControllers().AddNewtonsoftJson(options => options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 
 builder.Services.AddCors(options =>
 {
