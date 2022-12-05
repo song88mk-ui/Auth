@@ -44,11 +44,20 @@ namespace Auth.Api.Controllers
 
         [HttpGet]
         [Route("/authenticate")]
-        public async Task<IActionResult> Authenticate([FromQuery] string token)
+        public async Task<IActionResult> Authenticate()
         {
             try
             {
-                var result = await this._authRepository.Authenticate(token);
+                var result = new BaseResponse<TokenModel>()
+                {
+                    StatusCode = AuthStatusCode.Unauthorized,
+                    Message = "Missing authorization"
+                };
+                if (HttpContext.Request.Headers.ContainsKey("Authorization"))
+                {
+                    var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+                    result = await this._authRepository.Authenticate(token);
+                }
 
                 switch (result.StatusCode)
                 {
@@ -66,6 +75,37 @@ namespace Auth.Api.Controllers
             }
         }
 
-        // implement log out
+        [HttpGet]
+        [Route("/logout")]
+        public async Task<IActionResult> Logout()
+        {
+            try
+            {
+                var result = new BaseResponse<bool>()
+                {
+                    StatusCode = AuthStatusCode.Unauthorized,
+                    Message = "Missing authorization"
+                };
+                if (HttpContext.Request.Headers.ContainsKey("Authorization"))
+                {
+                    var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+                    result = await this._authRepository.Logout(token);
+                }
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
     }
 }

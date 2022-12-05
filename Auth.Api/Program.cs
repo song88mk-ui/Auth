@@ -19,7 +19,7 @@ var configuration = builder.Services.BuildServiceProvider().GetService<IConfigur
 builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
 builder.Services.AddDbContext<UserIdentityContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Transient);
 builder.Services.AddIdentity<AppUser, IdentityRole>().AddEntityFrameworkStores<UserIdentityContext>()
-    .AddTokenProvider("BoAPI", typeof(DataProtectorTokenProvider<AppUser>));
+    .AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>));
 
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
 builder.Services.AddScoped<ApiKeyFilter>();

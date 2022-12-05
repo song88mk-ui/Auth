@@ -1,10 +1,12 @@
-﻿using Auth.Shared.Data.Auth;
+﻿using Auth.Api.Services;
+using Auth.Shared.Data.Auth;
 using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Response;
 using Auth.Shared.Utilities;
 using Azure.Core;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
@@ -26,6 +28,7 @@ namespace Auth.Api.Repositories
     public class AuthRepository : IAuthRepository
     {
         private IConfiguration _configuration { get; set; }
+        private IUserIdentityService _userIdentityService { get; set; }
         private AuthContext _authContext { get; set; }
         private UserManager<AppUser> _userManager;
         private readonly byte[] TokenKey;
@@ -33,11 +36,13 @@ namespace Auth.Api.Repositories
 
         public AuthRepository(AuthContext authContext,
             UserManager<AppUser> userManager,
-            IConfiguration config)
+            IConfiguration config,
+            IUserIdentityService userIdentityService)
         {
             _authContext = authContext;
             _userManager = userManager;
             _configuration = config;
+            _userIdentityService = userIdentityService;
 
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
@@ -49,7 +54,7 @@ namespace Auth.Api.Repositories
             {
                 Subject = new ClaimsIdentity(),
                 TokenType = "bearer",
-                Expires = DateTime.UtcNow.AddMinutes(10),
+                Expires = DateTime.UtcNow.AddSeconds(5),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = Issuer
             };
@@ -77,6 +82,33 @@ namespace Auth.Api.Repositories
 
             return token;
         }
+        private async Task SaveToken(AppUser user, string token, LoginModel? loginModel = null)
+        {
+
+            if (loginModel == null)
+                loginModel = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
+                {
+                    Name = x.Name,
+                    Provider = x.LoginProvider
+                }).FirstOrDefault();
+
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+            {
+                _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
+                _authContext.AspNetUserTokens.Add(new AspNetUserTokens()
+                {
+                    UserId = user.Id,
+                    LoginProvider = loginModel.Provider,
+                    Name = loginModel.Name,
+                    Value = token
+                });
+
+                _authContext.SaveChanges();
+                scope.Complete();
+            }
+        }
+
+
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
         {
             try
@@ -96,18 +128,12 @@ namespace Auth.Api.Repositories
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) == PasswordVerificationResult.Success)
                 {
                     var accessToken = "";
-                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
-                    {
-                        var token = GenerateToken(user.Id, content.Provider, content.Name);
+                    var token = GenerateToken(user.Id, content.Provider, content.Name);
+                    var tokenHandler = new JwtSecurityTokenHandler();
+                    accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
-                        await _userManager.RemoveAuthenticationTokenAsync(user, content.Provider, $"{content.Provider}.Token");
-                        var tokenHandler = new JwtSecurityTokenHandler();
-                        accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
-                        await _userManager.SetAuthenticationTokenAsync(user, content.Provider, $"{content.Provider}.Token", accessToken);
 
-                        var refreshToken = await _userManager.GetAuthenticationTokenAsync(user, content.Provider, $"{content.Provider}.Token");
-                        var isValid = await _userManager.VerifyUserTokenAsync(user, content.Provider, $"{content.Provider}.Token", refreshToken);
-                    }
+                    SaveToken(user, accessToken, content);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -119,7 +145,6 @@ namespace Auth.Api.Repositories
                         }
                     };
                 }
-
                 return new BaseResponse<TokenModel>
                 {
                     StatusCode = StatusCode.Unauthorized,
@@ -136,6 +161,54 @@ namespace Auth.Api.Repositories
                     Result = null
                 };
             }
+        }
+        public async Task<BaseResponse<bool>> Logout(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Empty Token.",
+                    Result = false
+                };
+            }
+
+            var tokenEntity = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+            if (tokenEntity == null)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Invalid Token.",
+                    Result = false
+                };
+            }
+            var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
+            var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+            var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
+            var userEntity = _authContext.AspNetUsers.Where(x => x.Id == tokenEntity.UserId).FirstOrDefault();
+
+            if (userEntity == null)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Unauthorized,
+                    Message = "Invalid Token.",
+                    Result = false
+                };
+            }
+
+            var user = await _userManager.FindByNameAsync(userEntity.UserName);
+            _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
+            _authContext.SaveChangesAsync();
+
+            return new BaseResponse<bool>
+            {
+                StatusCode = StatusCode.Success,
+                Message = StatusCode.Success.ToString(),
+                Result = true
+            };
         }
         public async Task<BaseResponse<TokenModel>> Authenticate(string token)
         {
@@ -181,13 +254,6 @@ namespace Auth.Api.Repositories
                 // Expired
                 if (jwtToken.ValidTo < DateTime.UtcNow)
                 {
-                    //return new BaseResponse<bool>
-                    //{
-                    //    StatusCode = StatusCode.Unauthorized,
-                    //    Message = "Expired Token.",
-                    //    Result = false
-                    //};
-
                     var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                     var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
                     var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
@@ -207,8 +273,8 @@ namespace Auth.Api.Repositories
 
                     var tokenHandler = new JwtSecurityTokenHandler();
                     token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(tokenEntity.UserId, tokenEntity.LoginProvider, tokenEntity.Name)));
-                    await _userManager.RemoveAuthenticationTokenAsync(user, provider, $"{provider}.Token");
-                    await _userManager.SetAuthenticationTokenAsync(user, provider, $"{provider}.Token", token);
+
+                    SaveToken(user, token);
                 }
                 else
                 {
@@ -243,6 +309,8 @@ namespace Auth.Api.Repositories
                 };
             }
         }
+
+
         public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
         {
             var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
@@ -267,5 +335,6 @@ namespace Auth.Api.Repositories
                 }
             };
         }
+
     }
 }

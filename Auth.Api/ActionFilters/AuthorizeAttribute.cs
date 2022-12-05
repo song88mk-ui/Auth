@@ -17,6 +17,12 @@ namespace Auth.Api.ActionFilters
                 .AddJsonFile("appsettings.json").Build();
         public async void OnAuthorization(AuthorizationFilterContext context)
         {
+            if (!context.HttpContext.Request.Headers.ContainsKey("Authorization"))
+            {
+                context.Result = new JsonResult(new { title = "Unauthorized", message = "Missing Authorization" }) { StatusCode = StatusCodes.Status401Unauthorized };
+                return;
+            }
+
             var token = context.HttpContext.Request.Headers[HeaderNames.Authorization].ToString().Replace("Bearer ", "");
             var authRepository = (IAuthRepository)context.HttpContext.RequestServices.GetService(typeof(IAuthRepository));
 
@@ -27,9 +33,6 @@ namespace Auth.Api.ActionFilters
                 context.Result = new JsonResult(new { Title = "Unauthorized", Message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
             }
-
-            var claims = JwtParser.ParseClaimsFromJwt(token);
-            var jsonData = JsonSerializer.Serialize(claims);
         }
     }
 }
