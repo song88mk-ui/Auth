@@ -250,16 +250,17 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var tokenEntity = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+                //var tokenEntity = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
                 // Expired
                 if (jwtToken.ValidTo < DateTime.UtcNow)
                 {
                     var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                     var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
                     var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
-                    var userEntity = _authContext.AspNetUsers.Where(x => x.Id == tokenEntity.UserId).FirstOrDefault();
+                    var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
 
-                    if (userEntity == null)
+                    var user = await _userManager.FindByNameAsync(name);
+                    if (user == null)
                     {
                         return new BaseResponse<TokenModel>
                         {
@@ -268,25 +269,11 @@ namespace Auth.Api.Repositories
                             Result = null
                         };
                     }
-
-                    var user = await _userManager.FindByNameAsync(userEntity.UserName);
 
                     var tokenHandler = new JwtSecurityTokenHandler();
-                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(tokenEntity.UserId, tokenEntity.LoginProvider, tokenEntity.Name)));
+                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, provider, name)));
 
                     SaveToken(user, token);
-                }
-                else
-                {
-                    if (tokenEntity == null)
-                    {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
                 }
 
                 return new BaseResponse<TokenModel>
