@@ -252,7 +252,7 @@ namespace Auth.Api.Repositories
 
                 //var tokenEntity = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
                 // Expired
-                if (jwtToken.ValidTo < DateTime.UtcNow)
+                if (jwtToken.ValidTo.AddMinutes(5) < DateTime.UtcNow)
                 {
                     var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                     var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
