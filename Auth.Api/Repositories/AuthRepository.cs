@@ -200,7 +200,7 @@ namespace Auth.Api.Repositories
             }
 
             var user = await _userManager.FindByNameAsync(userEntity.UserName);
-            _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
+            _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == token && x.UserId == user.Id).FirstOrDefault());
             _authContext.SaveChangesAsync();
 
             return new BaseResponse<bool>
