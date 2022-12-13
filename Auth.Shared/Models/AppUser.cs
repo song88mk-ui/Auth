@@ -10,7 +10,7 @@ namespace Auth.Shared.Models
     public class AppUser : IdentityUser
     {
         public string MainUserId { get; set; }
-        public int AppId { get; set; }
-        public string AppName { get; set; }
+        public int? AppId { get; set; }
+        public string? AppName { get; set; }
     }
 }
