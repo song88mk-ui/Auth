@@ -4,9 +4,9 @@
     {
         public UserListResponse()
         {
-            Users = new List<AppUser>();
+            Users = new List<UserResponse>();
         }
 
-        public List<AppUser> Users { get; set; }
+        public List<UserResponse> Users { get; set; }
     }
 }

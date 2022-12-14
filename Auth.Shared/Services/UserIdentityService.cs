@@ -40,13 +40,28 @@ namespace Auth.Api.Services
                 if (!showSuperAdmin)
                     result = result.Where(result => result.UserName.ToLower() != "fci-admin");
 
+
+                var response = new List<UserResponse>();
+                if (result.Any())
+                {
+                    response = result.Select(s => new UserResponse
+                    {
+                        UserId = s.Id,
+                        UserName = s.UserName,
+                        Email = s.Email,
+                        AppId = s.AppId,
+                        AppName = s.AppName,
+                        MainUserId = s.MainUserId
+                    }).ToList();
+                }
+
                 return new BaseResponse<UserListResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
                     Result = new UserListResponse()
                     {
-                        Users = result.ToList()
+                        Users = response
                     }
                 };
             }
@@ -72,13 +87,27 @@ namespace Auth.Api.Services
                     users = result.Skip(skip).Take(request.PageSize).ToList();
                 }
 
+                var response = new List<UserResponse>();
+                if(users.Any())
+                {
+                    response = users.Select(s => new UserResponse
+                    {
+                        UserId = s.Id,
+                        UserName = s.UserName,
+                        Email = s.Email,
+                        AppId = s.AppId,
+                        AppName = s.AppName,
+                        MainUserId = s.MainUserId
+                    }).ToList();
+                }
+
                 return new BaseResponse<UserListResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
                     Result = new UserListResponse
                     {
-                        Users = users
+                        Users = response
                     }
                 };
             }
