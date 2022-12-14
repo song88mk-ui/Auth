@@ -28,7 +28,7 @@ namespace Auth.Api.ActionFilters
 
             var validToken = await authRepository.Authenticate(token);
 
-            if (validToken.Result.AccessToken != null)
+            if (validToken.Result.AccessToken == null)
             {
                 context.Result = new JsonResult(new { Title = "Unauthorized", Message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
