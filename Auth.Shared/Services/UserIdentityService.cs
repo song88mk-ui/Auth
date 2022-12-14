@@ -747,22 +747,30 @@ namespace Auth.Api.Services
                 return null;
             }
         }
-        public async Task<BaseResponse<AppUser>> GetCurrentUser(string userId)
+        public async Task<BaseResponse<UserResponse>> GetCurrentUser(string userId)
         {
             try
             {
                 var user = await _userManager.FindByIdAsync(userId);
 
-                return new BaseResponse<AppUser>
+                return new BaseResponse<UserResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = user
+                    Result = user == null ? new UserResponse() : new UserResponse
+                    {
+                        UserId = user.Id,
+                        UserName = user.UserName,
+                        Email = user.Email,
+                        AppId = user.AppId,
+                        AppName = user.AppName,
+                        MainUserId = user.MainUserId                        
+                    }
                 };
             }
             catch (Exception ex)
             {
-                return new BaseResponse<AppUser>
+                return new BaseResponse<UserResponse>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"

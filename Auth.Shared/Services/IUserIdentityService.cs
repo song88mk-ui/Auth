@@ -29,7 +29,7 @@ namespace Auth.Api.Services
         Task<BaseResponse<AppUser>> GetCurrentUser(ClaimsPrincipal principal);
         Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user);
         Task<AppRole> GetAspNetRoleByName(string name);
-        Task<BaseResponse<AppUser>> GetCurrentUser(string userId);
+        Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
         Task<BaseResponse<bool>> ChangePassword(AppUser user, string currentPassword, string newPassword);
     }
 }
