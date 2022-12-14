@@ -25,7 +25,7 @@ namespace Auth.Api.Controllers
 
         // User management (Get list, password management)
         [HttpPost("register")]
-        public async Task<IActionResult> Create([FromBody] UserComposeRequest request)
+        public async Task<IActionResult> Create([FromBody] UserRegisterRequest request)
         {
             try
             {
@@ -46,8 +46,9 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
         [HttpPost("modify")]
-        public async Task<IActionResult> Update([FromBody] UserComposeRequest request)
+        public async Task<IActionResult> Update([FromBody] UserRegisterRequest request)
         {
             try
             {

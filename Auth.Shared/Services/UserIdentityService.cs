@@ -319,17 +319,24 @@ namespace Auth.Api.Services
 
         }
 
-        public async Task<BaseResponse<bool>> AddAspNetUsers(UserComposeRequest request)
+        public async Task<BaseResponse<bool>> AddAspNetUsers(UserRegisterRequest request)
         {
             try
             {
-                //request.EmailConfirmed = true;
-                request.User.EmailConfirmed = request.Status == "Normal" ? true : false;
+                var user = new AppUser { 
+                    UserName = request.UserName, 
+                    Email = request.Email,
+                    EmailConfirmed = request.Status == "Normal" ? true : false,
+                    MainUserId = request.MainUserId,
+                    AppId = request.AppId,
+                    AppName = request.AppName
+                };
+
                 //var isvalid = await _userManager.UserValidators(request);
-                IdentityResult result = await _userManager.CreateAsync(request.User, request.User.PasswordHash);
+                IdentityResult result = await _userManager.CreateAsync(user, request.Password);
                 if (result.Succeeded)
                 {
-                    var addRole = await _userManager.AddToRoleAsync(request.User, request.RoleName);
+                    var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
@@ -364,42 +371,16 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserComposeRequest request, bool isDefault = false)
+        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false)
         {
             try
             {
-                var user = (await _userManager.FindByIdAsync(request.User.Id));
+                var user = (await _userManager.FindByIdAsync(request.UserId));
                 if (!isDefault)
                 {
-                    user.Email = request.User.Email;
+                    user.Email = request.Email;
                     user.EmailConfirmed = request.Status == "Normal" ? true : false;
                 }
-
-
-                //if (request.PasswordHash != null)
-                //{
-                //    var passwordValidator = new PasswordValidator<IdentityUser>();
-                //    var isValid = await passwordValidator.ValidateAsync(_userManager, null, request.PasswordHash);
-
-                //    if (isValid.Succeeded)
-                //    {
-                //        user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.PasswordHash);
-                //    }
-                //    else
-                //    {
-                //        string errorMsg = "";
-                //        foreach (IdentityError error in isValid.Errors)
-                //            errorMsg += error.Description.ToString() + ",";
-
-                //        return new BaseResponse<bool>
-                //        {
-                //            StatusCode = StatusCode.Error,
-                //            Message = $"{errorMsg.TrimEnd(',')} "
-                //        };
-                //    }
-
-                //}
-
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
@@ -416,7 +397,6 @@ namespace Auth.Api.Services
                         Message = StatusCode.Success.ToString()
                     };
                 }
-
                 else
                 {
                     string errorMsg = "";
@@ -624,7 +604,13 @@ namespace Auth.Api.Services
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
                 {
-                    var userRequest = new UserComposeRequest { User = user, RoleName = "Default" };
+                    var userRequest = new UserRegisterRequest { 
+                        UserName = user.UserName, 
+                        Email = user.Email,
+                        AppId = user.AppId,
+                        AppName = user.AppName,
+                        RoleName = "Default" 
+                    };
 
                     var addResult = await UpdateAspNetUsers(userRequest, true);
                 }

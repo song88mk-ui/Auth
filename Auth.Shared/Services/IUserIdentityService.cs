@@ -8,8 +8,8 @@ namespace Auth.Api.Services
 {
     public interface IUserIdentityService
     {
-        Task<BaseResponse<bool>> AddAspNetUsers(UserComposeRequest request);
-        Task<BaseResponse<bool>> UpdateAspNetUsers(UserComposeRequest request, bool isDefault = false);
+        Task<BaseResponse<bool>> AddAspNetUsers(UserRegisterRequest request);
+        Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false);
         Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
