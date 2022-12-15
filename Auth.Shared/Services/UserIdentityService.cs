@@ -47,6 +47,7 @@ namespace Auth.Api.Services
                     response = result.Select(s => new UserResponse
                     {
                         UserId = s.Id,
+                        NickName = s.NickName,
                         UserName = s.UserName,
                         Email = s.Email,
                         CreatedDate = s.CreatedDate,
@@ -94,6 +95,7 @@ namespace Auth.Api.Services
                     response = users.Select(s => new UserResponse
                     {
                         UserId = s.Id,
+                        NickName = s.NickName,
                         UserName = s.UserName,
                         Email = s.Email,
                         CreatedDate = s.CreatedDate,
@@ -763,6 +765,7 @@ namespace Auth.Api.Services
                     Result = user == null ? new UserResponse() : new UserResponse
                     {
                         UserId = user.Id,
+                        NickName = user.NickName,
                         UserName = user.UserName,
                         Email = user.Email,
                         CreatedDate = user.CreatedDate,
