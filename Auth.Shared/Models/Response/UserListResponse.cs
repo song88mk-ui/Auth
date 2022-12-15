@@ -8,5 +8,6 @@
         }
 
         public List<UserResponse> Users { get; set; }
+        public MetaData MetaData { get; set; }
     }
 }
