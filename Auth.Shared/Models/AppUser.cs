@@ -9,7 +9,7 @@ namespace Auth.Shared.Models
 {
     public class AppUser : IdentityUser
     {
-        public string NickName { get; set; }
+        public string? NickName { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string MainUserId { get; set; }
         public int AppId { get; set; }
