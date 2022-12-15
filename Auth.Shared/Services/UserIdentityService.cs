@@ -53,7 +53,8 @@ namespace Auth.Api.Services
                         CreatedDate = s.CreatedDate,
                         AppId = s.AppId,
                         AppName = s.AppName,
-                        MainUserId = s.MainUserId
+                        MainUserId = s.MainUserId,
+                        Status = s.LockoutEnd != null ? (s.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal"
                     }).ToList();
                 }
 
@@ -100,7 +101,7 @@ namespace Auth.Api.Services
                 }
 
                 var response = new List<UserResponse>();
-                if(users.Any())
+                if (users.Any())
                 {
                     response = users.Select(s => new UserResponse
                     {
@@ -111,7 +112,8 @@ namespace Auth.Api.Services
                         CreatedDate = s.CreatedDate,
                         AppId = s.AppId,
                         AppName = s.AppName,
-                        MainUserId = s.MainUserId
+                        MainUserId = s.MainUserId,
+                        Status = s.LockoutEnd != null ? (s.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal"
                     }).ToList();
                 }
 
@@ -367,15 +369,19 @@ namespace Auth.Api.Services
         {
             try
             {
-                var user = new AppUser { 
-                    UserName = request.UserName, 
+                var user = new AppUser
+                {
+                    UserName = request.UserName,
                     Email = request.Email,
-                    EmailConfirmed = request.Status == "Normal" ? true : false,
+                    EmailConfirmed = true,
                     CreatedDate = DateTime.UtcNow,
                     MainUserId = request.MainUserId,
                     AppId = request.AppId,
                     AppName = request.AppName
                 };
+
+                if (request.Status.ToUpper() == "Locked".ToUpper())
+                    user.LockoutEnd = DateTime.UtcNow;
 
                 //var isvalid = await _userManager.UserValidators(request);
                 IdentityResult result = await _userManager.CreateAsync(user, request.Password);
@@ -424,8 +430,11 @@ namespace Auth.Api.Services
                 if (!isDefault)
                 {
                     user.Email = request.Email;
-                    user.EmailConfirmed = request.Status == "Normal" ? true : false;
+                    user.EmailConfirmed = true;
                 }
+
+                if (request.Status.ToUpper() == "Locked".ToUpper())
+                    user.LockoutEnd = DateTime.UtcNow;
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
@@ -649,12 +658,13 @@ namespace Auth.Api.Services
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
                 {
-                    var userRequest = new UserRegisterRequest { 
-                        UserName = user.UserName, 
+                    var userRequest = new UserRegisterRequest
+                    {
+                        UserName = user.UserName,
                         Email = user.Email,
                         AppId = user.AppId,
                         AppName = user.AppName,
-                        RoleName = "Default" 
+                        RoleName = "Default"
                     };
 
                     var addResult = await UpdateAspNetUsers(userRequest, true);
@@ -782,7 +792,8 @@ namespace Auth.Api.Services
                         CreatedDate = user.CreatedDate,
                         AppId = user.AppId,
                         AppName = user.AppName,
-                        MainUserId = user.MainUserId                        
+                        MainUserId = user.MainUserId,
+                        Status = user.LockoutEnd != null ? (user.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal"
                     }
                 };
             }

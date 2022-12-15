@@ -10,5 +10,6 @@
         public DateTime? CreatedDate { get; set; }
         public int AppId { get; set; }
         public string AppName { get; set; }
+        public string Status { get; set; }
     }
 }
