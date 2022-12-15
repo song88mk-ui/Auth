@@ -125,7 +125,7 @@ namespace Auth.Api.Controllers
 
             switch (result.StatusCode)
             {
-                case Shared.Enums.StatusCode.Success:
+                case AuthStatusCode.Success:
                     return Ok(result);
                 default:
                     return BadRequest(result);

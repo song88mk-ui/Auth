@@ -80,12 +80,22 @@ namespace Auth.Api.Services
                 var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId);
 
                 var users = new List<AppUser>();
+                var metaData = new MetaData();
                 if (request.Page > 0 && request.PageSize > 0)
                 {
                     var rowCount = result.Count();
                     var skip = (request.Page - 1) * request.PageSize;
+                    var totalPage = ((rowCount - 1) / request.PageSize) + 1;
 
                     users = result.Skip(skip).Take(request.PageSize).ToList();
+
+                    metaData = new MetaData
+                    {
+                        TotalCount = rowCount,
+                        CurrentPage = request.Page,
+                        PageSize = request.PageSize,
+                        TotalPages = totalPage
+                    };
                 }
 
                 var response = new List<UserResponse>();
@@ -109,7 +119,8 @@ namespace Auth.Api.Services
                     Message = StatusCode.Success.ToString(),
                     Result = new UserListResponse
                     {
-                        Users = response
+                        Users = response,
+                        MetaData = metaData
                     }
                 };
             }
