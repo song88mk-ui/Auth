@@ -380,6 +380,7 @@ namespace Auth.Api.Services
                     AppName = request.AppName
                 };
 
+                user.LockoutEnd = null;
                 if (request.Status.ToUpper() == "Locked".ToUpper())
                     user.LockoutEnd = DateTime.UtcNow;
 
@@ -433,8 +434,10 @@ namespace Auth.Api.Services
                     user.EmailConfirmed = true;
                 }
 
-                if (request.Status.ToUpper() == "Locked".ToUpper())
+                if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
                     user.LockoutEnd = DateTime.UtcNow;
+                else
+                    user.LockoutEnd = null;
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
