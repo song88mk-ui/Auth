@@ -21,6 +21,7 @@ namespace Auth.Shared.Data.Auth.Entities
         public DateTime? LockoutEnd { get; set; }
         public bool LockoutEnabled { get; set; }
         public int AccessFailedCount { get; set; }
+        public DateTime DateCreated { get; set; }
         public string? MainUserId { get; set; }
         public int? AppId { get; set; }
         public string? AppName { get; set; }

@@ -49,6 +49,7 @@ namespace Auth.Api.Services
                         UserId = s.Id,
                         UserName = s.UserName,
                         Email = s.Email,
+                        CreatedDate = s.CreatedDate,
                         AppId = s.AppId,
                         AppName = s.AppName,
                         MainUserId = s.MainUserId
@@ -95,6 +96,7 @@ namespace Auth.Api.Services
                         UserId = s.Id,
                         UserName = s.UserName,
                         Email = s.Email,
+                        CreatedDate = s.CreatedDate,
                         AppId = s.AppId,
                         AppName = s.AppName,
                         MainUserId = s.MainUserId
@@ -356,6 +358,7 @@ namespace Auth.Api.Services
                     UserName = request.UserName, 
                     Email = request.Email,
                     EmailConfirmed = request.Status == "Normal" ? true : false,
+                    CreatedDate = DateTime.UtcNow,
                     MainUserId = request.MainUserId,
                     AppId = request.AppId,
                     AppName = request.AppName
@@ -762,6 +765,7 @@ namespace Auth.Api.Services
                         UserId = user.Id,
                         UserName = user.UserName,
                         Email = user.Email,
+                        CreatedDate = user.CreatedDate,
                         AppId = user.AppId,
                         AppName = user.AppName,
                         MainUserId = user.MainUserId                        
