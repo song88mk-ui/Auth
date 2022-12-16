@@ -389,6 +389,13 @@ namespace Auth.Api.Services
                 if (result.Succeeded)
                 {
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                    if(user.MainUserId != null)
+                        if(!string.IsNullOrWhiteSpace(user.MainUserId))
+                        {
+                            await _userManager.AddClaimsAsync(user, request.UserClaims);
+                        }
+
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
@@ -447,6 +454,13 @@ namespace Auth.Api.Services
 
                 if (result.Succeeded)
                 {
+                    if (user.MainUserId != null)
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                        {
+                            var oldClaims = await _userManager.GetClaimsAsync(user);
+                            var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
+                            await _userManager.AddClaimsAsync(user, request.UserClaims);
+                        }
 
                     return new BaseResponse<bool>
                     {

@@ -47,7 +47,7 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
         }
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string provider, string name)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string provider, string name, bool isSubUser)
         {
 
             var token = new SecurityTokenDescriptor
@@ -63,10 +63,16 @@ namespace Auth.Api.Repositories
             token.Subject.AddClaim(new Claim("Provider", provider));
             token.Subject.AddClaim(new Claim("TokenName", name));
 
-            var userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
-                (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
-                .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
-                .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
+            var userClaims = new[]  { new { ClaimType = "string", ClaimValue = "string" } }.ToList();
+
+            if (isSubUser)
+                userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
+                    .Select(x => new { x.ClaimType, x.ClaimValue }).ToList();
+            else
+                userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
+                    (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                    .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
+                    .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
 
             foreach (var item in userClaims)
             {
@@ -113,6 +119,8 @@ namespace Auth.Api.Repositories
         {
             try
             {
+                // if main user get from role claims
+                // if sub user get from user claims
                 var user = await _userManager.FindByNameAsync(content.Name);
 
                 if (user == null)
@@ -128,7 +136,14 @@ namespace Auth.Api.Repositories
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) == PasswordVerificationResult.Success)
                 {
                     var accessToken = "";
-                    var token = GenerateToken(user.Id, content.Provider, content.Name);
+
+                    var isSubUser = false;
+
+                    if (user.MainUserId != null)
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                            isSubUser = true;
+
+                    var token = GenerateToken(user.Id, content.Provider, content.Name, isSubUser);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
@@ -270,8 +285,14 @@ namespace Auth.Api.Repositories
                         };
                     }
 
+                    var isSubUser = false;
+
+                    if (user.MainUserId != null)
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                            isSubUser = true;
+
                     var tokenHandler = new JwtSecurityTokenHandler();
-                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, provider, name)));
+                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, provider, name, isSubUser)));
 
                     SaveToken(user, token);
                 }
