@@ -23,7 +23,6 @@ namespace Auth.Api.Controllers
             _authRepository = authRepository;
         }
 
-        // User management (Get list, password management)
         [HttpPost("register")]
         public async Task<IActionResult> Create([FromBody] UserRegisterRequest request)
         {
@@ -69,8 +68,6 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-
-        // Roles management (Create, update delete)
 
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetCurrentUser(string userId)

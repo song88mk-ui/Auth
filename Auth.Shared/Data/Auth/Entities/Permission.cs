@@ -8,7 +8,7 @@ namespace Auth.Shared.Data.Auth.Entities
 {
     public class Permission
     {
-        public string PermissionId { get; set; }
+        public Guid PermissionId { get; set; }
         public string Category { get; set; }
         public string Name { get; set; }
         public string ClaimType { get; set; }
