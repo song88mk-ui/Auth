@@ -79,7 +79,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId);
+                var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText)) );
 
                 var users = new List<AppUser>();
                 var metaData = new MetaData();
