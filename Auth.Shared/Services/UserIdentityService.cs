@@ -54,7 +54,7 @@ namespace Auth.Api.Services
                         AppId = s.AppId,
                         AppName = s.AppName,
                         MainUserId = s.MainUserId,
-                        Status = s.LockoutEnd != null ? (s.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal"
+                        Status = s.LockoutEnd != null ? "Locked" : "Normal"
                     }).ToList();
                 }
 
@@ -123,7 +123,7 @@ namespace Auth.Api.Services
                             AppId = s.AppId,
                             AppName = s.AppName,
                             MainUserId = s.MainUserId,
-                            Status = s.LockoutEnd != null ? (s.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal",
+                            Status = s.LockoutEnd != null ?  "Locked" : "Normal",
                             Claims = claimsModel
                         };
                         response.Add(userResponse);
@@ -846,7 +846,7 @@ namespace Auth.Api.Services
                         AppId = user.AppId,
                         AppName = user.AppName,
                         MainUserId = user.MainUserId,
-                        Status = user.LockoutEnd != null ? (user.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal",
+                        Status = user.LockoutEnd != null ? "Locked" : "Normal",
                         Claims = claimsModel
                     }
                 };
