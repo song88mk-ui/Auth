@@ -103,18 +103,32 @@ namespace Auth.Api.Services
                 var response = new List<UserResponse>();
                 if (users.Any())
                 {
-                    response = users.Select(s => new UserResponse
+                    foreach(var s in users)
                     {
-                        UserId = s.Id,
-                        NickName = s.NickName,
-                        UserName = s.UserName,
-                        Email = s.Email,
-                        CreatedDate = s.CreatedDate,
-                        AppId = s.AppId,
-                        AppName = s.AppName,
-                        MainUserId = s.MainUserId,
-                        Status = s.LockoutEnd != null ? (s.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal"
-                    }).ToList();
+                        var claimsModel = new List<ClaimModel>();
+                        if (s != null)
+                        {
+                            var userClaim = await _userManager.GetClaimsAsync(s);
+
+                            claimsModel = userClaim == null ? new List<ClaimModel>() : userClaim.Select(s => new ClaimModel { ClaimType = s.Type, ClaimValue = s.Value }).ToList();
+                        }
+
+                        var userResponse = new UserResponse
+                        {
+                            UserId = s.Id,
+                            NickName = s.NickName,
+                            UserName = s.UserName,
+                            Email = s.Email,
+                            CreatedDate = s.CreatedDate,
+                            AppId = s.AppId,
+                            AppName = s.AppName,
+                            MainUserId = s.MainUserId,
+                            Status = s.LockoutEnd != null ? (s.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal",
+                            Claims = claimsModel
+                        };
+                        response.Add(userResponse);
+
+                    }
                 }
 
                 return new BaseResponse<UserListResponse>
@@ -390,11 +404,11 @@ namespace Auth.Api.Services
                 {
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
-                    if(user.MainUserId != null)
-                        if(!string.IsNullOrWhiteSpace(user.MainUserId))
+                    if (user.MainUserId != null)
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
                         {
                             var claims = new List<Claim>();
-                            if(request.UserClaims != null && request.UserClaims.Any())
+                            if (request.UserClaims != null && request.UserClaims.Any())
                             {
                                 claims = request.UserClaims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                                 await _userManager.AddClaimsAsync(user, claims);
@@ -806,6 +820,12 @@ namespace Auth.Api.Services
             try
             {
                 var user = await _userManager.FindByIdAsync(userId);
+                var claimsModel = new List<ClaimModel>();
+                if (user != null)
+                {
+                    var userClaim = await _userManager.GetClaimsAsync(user);
+                    claimsModel = userClaim == null ? new List<ClaimModel>() : userClaim.Select(s => new ClaimModel { ClaimType = s.Type, ClaimValue = s.Value }).ToList();
+                }
 
                 return new BaseResponse<UserResponse>
                 {
@@ -821,7 +841,8 @@ namespace Auth.Api.Services
                         AppId = user.AppId,
                         AppName = user.AppName,
                         MainUserId = user.MainUserId,
-                        Status = user.LockoutEnd != null ? (user.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal"
+                        Status = user.LockoutEnd != null ? (user.LockoutEnd < DateTime.UtcNow ? "Normal" : "Locked") : "Normal",
+                        Claims = claimsModel
                     }
                 };
             }

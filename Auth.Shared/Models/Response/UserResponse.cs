@@ -11,5 +11,6 @@
         public int AppId { get; set; }
         public string AppName { get; set; }
         public string Status { get; set; }
+        public List<ClaimModel> Claims { get; set; }
     }
 }
