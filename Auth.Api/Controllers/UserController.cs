@@ -25,7 +25,7 @@ namespace Auth.Api.Controllers
 
         [HttpPost("register")]
         public async Task<IActionResult> Create([FromBody] UserRegisterRequest request)
-        {//
+        {
             try
             {
                 var result = await _userIdentityService.AddAspNetUsers(request);

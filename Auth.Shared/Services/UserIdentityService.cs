@@ -418,7 +418,8 @@ namespace Auth.Api.Services
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString()
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
                     };
                 }
                 else
@@ -490,7 +491,8 @@ namespace Auth.Api.Services
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString()
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
                     };
                 }
                 else
@@ -666,7 +668,8 @@ namespace Auth.Api.Services
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString()
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
                     };
                 }
                 else
@@ -721,7 +724,8 @@ namespace Auth.Api.Services
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString()
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
                     };
                 }
 
@@ -867,6 +871,7 @@ namespace Auth.Api.Services
                     {
                         StatusCode = StatusCode.Success,
                         Message = StatusCode.Success.ToString(),
+                        Result = true
                     };
                 else
                     return new BaseResponse<bool>
