@@ -554,7 +554,8 @@ namespace Auth.Api.Services
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString()
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
                     };
                 }
 
