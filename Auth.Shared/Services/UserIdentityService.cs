@@ -391,7 +391,8 @@ namespace Auth.Api.Services
                     CreatedDate = DateTime.UtcNow,
                     MainUserId = request.MainUserId,
                     AppId = request.AppId,
-                    AppName = request.AppName
+                    AppName = request.AppName,
+                    NickName = request.NickName
                 };
 
                 user.LockoutEnd = null;
@@ -408,9 +409,9 @@ namespace Auth.Api.Services
                         if (!string.IsNullOrWhiteSpace(user.MainUserId))
                         {
                             var claims = new List<Claim>();
-                            if (request.UserClaims != null && request.UserClaims.Any())
+                            if (request.Claims != null && request.Claims.Any())
                             {
-                                claims = request.UserClaims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                                claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                                 await _userManager.AddClaimsAsync(user, claims);
                             }
                         }
@@ -466,6 +467,8 @@ namespace Auth.Api.Services
                 else
                     user.LockoutEnd = null;
 
+                user.NickName = request.NickName;
+
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
                 var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
@@ -481,9 +484,9 @@ namespace Auth.Api.Services
                             var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
 
                             var claims = new List<Claim>();
-                            if (request.UserClaims != null && request.UserClaims.Any())
+                            if (request.Claims != null && request.Claims.Any())
                             {
-                                claims = request.UserClaims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                                claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                                 await _userManager.AddClaimsAsync(user, claims);
                             }
                         }
