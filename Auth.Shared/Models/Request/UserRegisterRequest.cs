@@ -18,6 +18,6 @@ namespace Auth.Shared.Models
         public string AppName { get; set; }
         public string RoleName { get; set; }
         public string Status { get; set; }
-        public List<Claim>? UserClaims { get; set; }
+        public List<ClaimModel>? UserClaims { get; set; }
     }
 }

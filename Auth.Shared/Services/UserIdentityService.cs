@@ -393,7 +393,12 @@ namespace Auth.Api.Services
                     if(user.MainUserId != null)
                         if(!string.IsNullOrWhiteSpace(user.MainUserId))
                         {
-                            await _userManager.AddClaimsAsync(user, request.UserClaims);
+                            var claims = new List<Claim>();
+                            if(request.UserClaims != null && request.UserClaims.Any())
+                            {
+                                claims = request.UserClaims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                                await _userManager.AddClaimsAsync(user, claims);
+                            }
                         }
 
                     return new BaseResponse<bool>
@@ -459,7 +464,13 @@ namespace Auth.Api.Services
                         {
                             var oldClaims = await _userManager.GetClaimsAsync(user);
                             var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
-                            await _userManager.AddClaimsAsync(user, request.UserClaims);
+
+                            var claims = new List<Claim>();
+                            if (request.UserClaims != null && request.UserClaims.Any())
+                            {
+                                claims = request.UserClaims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                                await _userManager.AddClaimsAsync(user, claims);
+                            }
                         }
 
                     return new BaseResponse<bool>
