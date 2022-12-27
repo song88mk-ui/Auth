@@ -47,7 +47,7 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
         }
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string provider, string name, bool isSubUser)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string provider, string name, string mainUserId)
         {
 
             var token = new SecurityTokenDescriptor
@@ -62,6 +62,13 @@ namespace Auth.Api.Repositories
 
             token.Subject.AddClaim(new Claim("Provider", provider));
             token.Subject.AddClaim(new Claim("TokenName", name));
+            token.Subject.AddClaim(new Claim("MainUserId", mainUserId));
+
+            var isSubUser = false;
+
+            if (mainUserId != null)
+                if (!string.IsNullOrWhiteSpace(mainUserId))
+                    isSubUser = true;
 
             var userClaims = new[]  { new { ClaimType = "string", ClaimValue = "string" } }.ToList();
 
@@ -137,13 +144,7 @@ namespace Auth.Api.Repositories
                 {
                     var accessToken = "";
 
-                    var isSubUser = false;
-
-                    if (user.MainUserId != null)
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
-                            isSubUser = true;
-
-                    var token = GenerateToken(user.Id, content.Provider, content.Name, isSubUser);
+                    var token = GenerateToken(user.Id, content.Provider, content.Name, user.MainUserId);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
@@ -285,14 +286,8 @@ namespace Auth.Api.Repositories
                         };
                     }
 
-                    var isSubUser = false;
-
-                    if (user.MainUserId != null)
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
-                            isSubUser = true;
-
                     var tokenHandler = new JwtSecurityTokenHandler();
-                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, provider, name, isSubUser)));
+                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, provider, name, user.MainUserId)));
 
                     SaveToken(user, token);
                 }
