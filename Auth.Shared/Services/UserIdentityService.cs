@@ -491,6 +491,13 @@ namespace Auth.Api.Services
                             }
                         }
 
+                    if(!string.IsNullOrEmpty(request.Password))
+                    {
+                        user.PasswordHash = request.Password;
+
+                        await ChangePasswordAspNetUsers(user);
+                    }
+
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
