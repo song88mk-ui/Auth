@@ -140,6 +140,16 @@ namespace Auth.Api.Repositories
                     };
                 }
 
+                if(user.LockoutEnd != null)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "User is locked.",
+                        Result = null
+                    };
+                }
+
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) == PasswordVerificationResult.Success)
                 {
                     var accessToken = "";
