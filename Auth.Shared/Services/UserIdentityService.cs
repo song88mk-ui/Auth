@@ -154,43 +154,67 @@ namespace Auth.Api.Services
 
         }
 
-        public async Task<List<AppRole>> GetAspNetRolesList(string search = "", bool showSuperAdmin = false)
+        public async Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request)
         {
             try
             {
                 var query = _roleManager.Roles.AsNoTracking();
 
-                if (!string.IsNullOrEmpty(search))
-                    query = query.Where(result => result.Name.Contains(search));
+                if (!string.IsNullOrEmpty(request.SearchText))
+                    query = query.Where(result => result.Name.Contains(request.SearchText));
 
-                if (!showSuperAdmin)
+                if (!request.ShowSuperAdmin)
                     query = query.Where(c => c.Name.ToLower() != "super admin");
 
-                var result = new List<AppRole>();
-                var roles = query.ToList();
+
+                var totalCount = query.Count();
+                var skip = (request.Page - 1) * request.PageSize;
+                var totalPage = ((totalCount - 1) / request.PageSize) + 1;
+
+                var roles = query.Skip(skip).Take(request.PageSize).ToList();
+
+                var result = new UserGroupListResponse();
 
                 foreach (var role in roles)
                 {
                     var userCount = (await _userManager.GetUsersInRoleAsync(role.Name)).Count;
 
-                    result.Add(new AppRole
+                    var claims = await GetAspNetRoleClaims(role.Id);
+
+                    result.UserGroups.Add(new UserGroupResponse
                     {
-                        Id = role.Id,
-                        Name = role.Name,
-                        NormalizedName = role.NormalizedName,
-                        ConcurrencyStamp = role.ConcurrencyStamp,
-                        UserCount = userCount
+                        UserGroupId = role.Id,
+                        UserGroupName = role.Name,
+                        Claims = claims ?? new List<ClaimModel>()
                     });
                 }
 
-                return result;
+                result.MetaData = new MetaData
+                {
+                    TotalCount = totalCount,
+                    CurrentPage = request.Page,
+                    PageSize = request.PageSize,
+                    TotalPages = totalPage
+                };
+
+                return new BaseResponse<UserGroupListResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = result ?? new UserGroupListResponse()
+                };
             }
             catch (Exception ex)
             {
-                return null;
+                return new BaseResponse<UserGroupListResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
             }
 
         }
+
         public async Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings)
         {
             try
@@ -267,7 +291,7 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<List<AppUser>> GetAspNetRoleUsers(string roleId)
+        public async Task<BaseResponse<List<UserResponse>>> GetAspNetRoleUsers(UserGroupRequest request)
         {
             try
             {
@@ -276,19 +300,27 @@ namespace Auth.Api.Services
 
                 var result = (from ur in userRoles
                               join u in users on ur.UserId equals u.Id
-                              where ur.RoleId == roleId
-                              select new AppUser
+                              where ur.RoleId == request.UserGroupId
+                              select new UserResponse
                               {
-                                  Id = u.Id,
+                                  UserId = u.Id,
                                   UserName = u.UserName,
-
                               }).ToList();
 
-                return result;
+                return new BaseResponse<List<UserResponse>>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = result ?? new List<UserResponse>()
+                };
             }
             catch (Exception ex)
             {
-                return null;
+                return new BaseResponse<List<UserResponse>>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
             }
 
         }
@@ -333,14 +365,18 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<List<Claim>> GetAspNetRoleClaims(string roleId)
+        public async Task<List<ClaimModel>> GetAspNetRoleClaims(string roleId)
         {
             try
             {
                 var role = await _roleManager.FindByIdAsync(roleId);
                 var result = await _roleManager.GetClaimsAsync(role);
 
-                return result.ToList();
+                return result.Select(s => new ClaimModel
+                {
+                    ClaimType = s.Type,
+                    ClaimValue = s.Value
+                }).ToList();
             }
             catch (Exception ex)
             {
@@ -348,14 +384,18 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<List<Claim>> GetAspNetRoleClaimsByName(string roleName)
+        public async Task<List<ClaimModel>> GetAspNetRoleClaimsByName(string roleName)
         {
             try
             {
                 var role = await _roleManager.FindByNameAsync(roleName);
                 var result = await _roleManager.GetClaimsAsync(role);
 
-                return result.ToList();
+                return result.Select(s => new ClaimModel
+                {
+                    ClaimType = s.Type,
+                    ClaimValue = s.Value
+                }).ToList();
             }
             catch (Exception ex)
             {
@@ -363,22 +403,7 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<List<IdentityRoleClaim<string>>> GetAspNetRoleClaims2(string roleId)
-        {
-            try
-            {
-                var role = _roleManager.Roles.FirstOrDefault(c => c.Id == roleId);
-                var result = _userIdentityContext.RoleClaims.Where(c => c.RoleId == roleId).ToList();
-
-                return result.ToList();
-            }
-            catch (Exception ex)
-            {
-                return null;
-            }
-
-        }
-
+        
         public async Task<BaseResponse<bool>> AddAspNetUsers(UserRegisterRequest request)
         {
             try
@@ -528,6 +553,61 @@ namespace Auth.Api.Services
                 };
             }
         }
+        public async Task<BaseResponse<bool>> UpdateAspNetUserRole(UserRegisterRequest request)
+        {
+            try
+            {
+                var user = (await _userManager.FindByIdAsync(request.UserId));
+
+                var oldRoles = await _userManager.GetRolesAsync(user);
+                var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
+                var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                var result = await _userManager.UpdateAsync(user);
+
+                if (result.Succeeded)
+                {
+                    var oldClaims = await _userManager.GetClaimsAsync(user);
+                    var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
+
+                    var claims = new List<Claim>();
+                    if (request.Claims != null && request.Claims.Any())
+                    {
+                        claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                        await _userManager.AddClaimsAsync(user, claims);
+                    }
+
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
+                    };
+                }
+                else
+                {
+                    string errorMsg = "";
+                    foreach (IdentityError error in result.Errors)
+                        errorMsg += error.Description.ToString() + ",";
+
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = $"{errorMsg.TrimEnd(',')} "
+                    };
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
+            }
+        }
+
         public async Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request)
         {
             try
@@ -594,66 +674,34 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> AddAspNetRoles(string roleName, List<AppRoleClaim> tmpRoleClaims)
+        public async Task<BaseResponse<bool>> AddOrUpdateAspNetRoles(UserGroupRequest request)
         {
             try
             {
-                IdentityResult result = await _roleManager.CreateAsync(new IdentityRole(roleName));
-                var appRole = await _roleManager.FindByNameAsync(roleName);
-                if (result.Succeeded)
+                IdentityResult result = new IdentityResult();
+                //List<AppRoleClaim> tmpRoleClaims
+                var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
+
+                if(appRole == null)
                 {
-                    foreach (var claims in tmpRoleClaims)
-                    {
-                        Claim newClaims = new Claim(claims.ClaimType, claims.ClaimValue);
-                        await _roleManager.AddClaimAsync(appRole, newClaims);
-                    }
+                    result = await _roleManager.CreateAsync(new IdentityRole(request.UserGroupName));
+                    appRole = await _roleManager.FindByNameAsync(request.UserGroupName);
 
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString()
-                    };
+                    request.UserGroupId = appRole.Id;
                 }
-
                 else
                 {
-                    string errorMsg = "";
-                    foreach (IdentityError error in result.Errors)
-                        errorMsg += error.Description.ToString() + ",";
-
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"{errorMsg.TrimEnd(',')} "
-                    };
+                    appRole.Name = request.UserGroupName;
+                    result = await _roleManager.UpdateAsync(appRole);
                 }
 
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
-        public async Task<BaseResponse<bool>> UpdateAspNetRoles(AppRole request, List<AppRoleClaim> tmpRoleClaims)
-        {
-            try
-            {
-
-                var appRole = await _roleManager.FindByIdAsync(request.Id);
-                appRole.Name = request.Name;
-
-                IdentityResult result = await _roleManager.UpdateAsync(appRole);
                 if (result.Succeeded)
                 {
                     using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                     {
-                        foreach (var claims in tmpRoleClaims)
+                        foreach (var claims in request.Claims)
                         {
-                            var newClaims = _userIdentityContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.Id && x.ClaimType == claims.ClaimType);
+                            var newClaims = _userIdentityContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claims.ClaimType);
                             if (newClaims == null)
                             {
                                 Claim newClaims2 = new Claim(claims.ClaimType, claims.ClaimValue);
@@ -705,32 +753,34 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> DeleteAspNetRoles(AppRole request)
+        
+        public async Task<BaseResponse<bool>> DeleteAspNetRoles(UserGroupRequest request)
         {
             try
             {
-                var appRole = await _roleManager.FindByIdAsync(request.Id);
-                var appUsers = await GetAspNetRoleUsers(request.Id);
+                var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
+                var appUsers = (await GetAspNetRoleUsers(request)).Result; 
+
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
                 {
+                    var claims = await GetAspNetRoleClaimsByName("Default");
+
                     var userRequest = new UserRegisterRequest
                     {
                         UserName = user.UserName,
                         Email = user.Email,
                         AppId = user.AppId,
                         AppName = user.AppName,
-                        RoleName = "Default"
+                        RoleName = "Default",
+                        Claims = claims ?? new List<ClaimModel>()
                     };
 
-                    var addResult = await UpdateAspNetUsers(userRequest, true);
+                    var addResult = await UpdateAspNetUserRole(userRequest);
                 }
-                //var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
-                //var addRole = await _userManager.AddToRoleAsync(user, roleName);
+                
                 if (result.Succeeded)
                 {
-
-
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Success,
@@ -830,6 +880,7 @@ namespace Auth.Api.Services
                 return null;
             }
         }
+
         public async Task<BaseResponse<UserResponse>> GetCurrentUser(string userId)
         {
             try

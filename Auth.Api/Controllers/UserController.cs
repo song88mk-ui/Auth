@@ -128,5 +128,79 @@ namespace Auth.Api.Controllers
                     return BadRequest(result);
             }
         }
+
+        [HttpPost("usergroup/list")]
+        public async Task<IActionResult> GetUserGroupList([FromBody] UserGroupListRequest request)
+        {
+            var result = await _userIdentityService.GetAspNetRolesList(request);
+
+            switch (result.StatusCode)
+            {
+                case AuthStatusCode.Success:
+                    return Ok(result);
+                default:
+                    return BadRequest(result);
+            }
+        }
+
+        [HttpPost("usergroup/user/list")]
+        public async Task<IActionResult> GetUserGroupUsers([FromBody] UserGroupRequest request)
+        {
+            var result = await _userIdentityService.GetAspNetRoleUsers(request);
+
+            switch (result.StatusCode)
+            {
+                case AuthStatusCode.Success:
+                    return Ok(result);
+                default:
+                    return BadRequest(result);
+            }
+        }
+
+        [HttpPost("usergroup/post")]
+        public async Task<IActionResult> AddOrUpdateUserGroup([FromBody] UserGroupRequest request)
+        {
+            try
+            {
+                var result = await _userIdentityService.AddOrUpdateAspNetRoles(request);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+        [HttpPost("usergroup/delete")]
+        public async Task<IActionResult> DeleteUserGroup([FromBody] UserGroupRequest request)
+        {
+            try
+            {
+                var result = await _userIdentityService.DeleteAspNetRoles(request);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
     }
 }
