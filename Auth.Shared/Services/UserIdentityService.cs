@@ -33,41 +33,63 @@ namespace Auth.Api.Services
         {
             try
             {
-                var result = _userManager.Users.AsNoTracking();
+                var result = _userManager.Users.AsNoTracking().Where(x => string.IsNullOrWhiteSpace(x.MainUserId)).ToList();
 
                 if (!string.IsNullOrEmpty(search))
-                    result = result.Where(result => result.UserName.ToLower().Contains(search.ToLower()));
+                    result = result.Where(result => result.UserName.ToLower().Contains(search.ToLower())).ToList();
 
                 if (!showSuperAdmin)
-                    result = result.Where(result => result.UserName.ToLower() != "fci-admin");
+                    result = result.Where(result => result.UserName.ToLower() != "fci-admin").ToList();
 
 
                 var response = new List<ManageUserResponse>();
                 if (result.Any())
                 {
-                    var userGroup = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
+                    var userGroups = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
                     userRole => userRole.RoleId,
                     role => role.Id,
                     (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName });
 
-                    response = result.Join(userGroup,
-                        user => user.Id,
-                        userGroup => userGroup.UserId,
-                        (user, userGroup) => new { user, userGroup.Id, userGroup.Name, userGroup.NormalizedName }).Select(x => new ManageUserResponse
+                    //response = result.Join(userGroups,
+                    //    user => user.Id,
+                    //    userGroup => userGroup.UserId,
+                    //    (user, userGroup) => new { user, userGroup.Id, userGroup.Name, userGroup.NormalizedName }).Select(x => new ManageUserResponse
+                    //    {
+                    //        UserId = x.Id,
+                    //        NickName = x.user.NickName,
+                    //        UserName = x.user.UserName,
+                    //        Email = x.user.Email,
+                    //        CreatedDate = x.user.CreatedDate,
+                    //        AppId = x.user.AppId,
+                    //        AppName = x.user.AppName,
+                    //        MainUserId = x.user.MainUserId,
+                    //        Status = x.user.LockoutEnd != null ? "Locked" : "Normal",
+                    //        RoleId = x.Id,
+                    //        RoleName = x.Name,
+                    //        RoleNormalizedName = x.NormalizedName
+                    //    }).ToList();
+
+                    response = new List<ManageUserResponse>();
+                    foreach(var user in result)
+                    {
+                        var userGroup = userGroups.Where(x => x.UserId == user.Id).FirstOrDefault();
+
+                        response.Add(new ManageUserResponse()
                         {
-                            UserId = x.Id,
-                            NickName = x.user.NickName,
-                            UserName = x.user.UserName,
-                            Email = x.user.Email,
-                            CreatedDate = x.user.CreatedDate,
-                            AppId = x.user.AppId,
-                            AppName = x.user.AppName,
-                            MainUserId = x.user.MainUserId,
-                            Status = x.user.LockoutEnd != null ? "Locked" : "Normal",
-                            RoleId = x.Id,
-                            RoleName = x.Name,
-                            RoleNormalizedName = x.NormalizedName
-                        }).ToList();
+                            UserId = user.Id,
+                            NickName = user.NickName,
+                            UserName = user.UserName,
+                            Email = user.Email,
+                            CreatedDate = user.CreatedDate,
+                            AppId = user.AppId,
+                            AppName = user.AppName,
+                            MainUserId = user.MainUserId,
+                            Status = user.LockoutEnd != null ? "Locked" : "Normal",
+                            RoleId = userGroup.Id,
+                            RoleName = userGroup.Name,
+                            RoleNormalizedName = userGroup.NormalizedName
+                        });
+                    }
                 }
 
                 return new BaseResponse<ManageUserListResponse>
@@ -82,7 +104,12 @@ namespace Auth.Api.Services
             }
             catch (Exception ex)
             {
-                return null;
+                return new BaseResponse<ManageUserListResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})",
+                    Result = new ManageUserListResponse()
+                };
             }
 
         }
