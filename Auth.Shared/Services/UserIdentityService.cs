@@ -95,16 +95,16 @@ namespace Auth.Api.Services
                 switch ((int)sortby)
                 {
                     case 0:
-                        result = result.OrderBy(x => x.UserName).ToList();
+                        response = response.OrderBy(x => x.UserName).ToList();
                         break;
                     case 1:
-                        result = result.OrderByDescending(x => x.UserName).ToList();
+                        response = response.OrderByDescending(x => x.UserName).ToList();
                         break;
                     case 2:
-                        result = result.OrderBy(x => x.CreatedDate).ToList();
+                        response = response.OrderBy(x => x.CreatedDate).ToList();
                         break;
                     default:
-                        result = result.OrderByDescending(x => x.CreatedDate).ToList();
+                        response = response.OrderByDescending(x => x.CreatedDate).ToList();
                         break;
                 }
 
