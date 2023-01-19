@@ -29,7 +29,7 @@ namespace Auth.Api.Services
         #endregion
 
         #region Methods
-        public async Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", bool showSuperAdmin = false)
+        public async Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", UserSorting sortby = UserSorting.SortByCreateDateDesc, bool showSuperAdmin = false)
         {
             try
             {
@@ -90,6 +90,22 @@ namespace Auth.Api.Services
                             RoleNormalizedName = userGroup.NormalizedName
                         });
                     }
+                }
+
+                switch ((int)sortby)
+                {
+                    case 0:
+                        result = result.OrderBy(x => x.UserName).ToList();
+                        break;
+                    case 1:
+                        result = result.OrderByDescending(x => x.UserName).ToList();
+                        break;
+                    case 2:
+                        result = result.OrderBy(x => x.CreatedDate).ToList();
+                        break;
+                    default:
+                        result = result.OrderByDescending(x => x.CreatedDate).ToList();
+                        break;
                 }
 
                 return new BaseResponse<ManageUserListResponse>

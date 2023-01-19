@@ -1,4 +1,5 @@
-﻿using Auth.Shared.Models;
+﻿using Auth.Shared.Enums;
+using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
 using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,7 @@ namespace Auth.Api.Services
         Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
-        Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", bool showSuperAdmin = false);
+        Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", UserSorting sortby = UserSorting.SortByCreateDateDesc, bool showSuperAdmin = false);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
         Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request);
         Task<AppRole> GetAspNetUsersRole(AppUser user);

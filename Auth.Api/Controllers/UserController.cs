@@ -1,6 +1,7 @@
 ﻿using Auth.Api.ActionFilters;
 using Auth.Api.Repositories;
 using Auth.Api.Services;
+using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
 using Microsoft.AspNetCore.Cors;
@@ -92,11 +93,11 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpGet("list")]
-        public async Task<IActionResult> GetManageUserList([FromQuery] string? search = null, [FromQuery] bool isShowSuperAdmin = false)
+        public async Task<IActionResult> GetManageUserList([FromQuery] string? search = null, [FromQuery] UserSorting sortby = UserSorting.SortByCreateDateDesc, [FromQuery] bool isShowSuperAdmin = false)
         {
             try
             {
-                var result = await _userIdentityService.GetManageAspNetUsersList(search ?? "", isShowSuperAdmin);
+                var result = await _userIdentityService.GetManageAspNetUsersList(search ?? "", sortby, isShowSuperAdmin);
 
                 switch (result.StatusCode)
                 {
