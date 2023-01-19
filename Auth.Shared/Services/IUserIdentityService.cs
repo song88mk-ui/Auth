@@ -14,7 +14,7 @@ namespace Auth.Api.Services
         Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
-        Task<BaseResponse<UserListResponse>> GetAspNetUsersList(string search = "", bool showSuperAdmin = false);
+        Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", bool showSuperAdmin = false);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
         Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request);
         Task<AppRole> GetAspNetUsersRole(AppUser user);

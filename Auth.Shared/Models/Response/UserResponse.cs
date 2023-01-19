@@ -13,4 +13,10 @@
         public string Status { get; set; }
         public List<ClaimModel> Claims { get; set; }
     }
+    public class ManageUserResponse : UserResponse
+    {
+        public string RoleId { get; set; }
+        public string RoleName { get; set; }
+        public string RoleNormalizedName { get; set; }
+    }
 }

@@ -92,11 +92,11 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpGet("list")]
-        public async Task<IActionResult> GetUserList([FromQuery] string? search = null, [FromQuery] bool isShowSuperAdmin = false)
+        public async Task<IActionResult> GetManageUserList([FromQuery] string? search = null, [FromQuery] bool isShowSuperAdmin = false)
         {
             try
             {
-                var result = await _userIdentityService.GetAspNetUsersList(search ?? "", isShowSuperAdmin);
+                var result = await _userIdentityService.GetManageAspNetUsersList(search ?? "", isShowSuperAdmin);
 
                 switch (result.StatusCode)
                 {

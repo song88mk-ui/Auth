@@ -6,6 +6,7 @@ using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Transactions;
 
 namespace Auth.Api.Services
@@ -28,7 +29,7 @@ namespace Auth.Api.Services
         #endregion
 
         #region Methods
-        public async Task<BaseResponse<UserListResponse>> GetAspNetUsersList(string search = "", bool showSuperAdmin = false)
+        public async Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", bool showSuperAdmin = false)
         {
             try
             {
@@ -41,28 +42,39 @@ namespace Auth.Api.Services
                     result = result.Where(result => result.UserName.ToLower() != "fci-admin");
 
 
-                var response = new List<UserResponse>();
+                var response = new List<ManageUserResponse>();
                 if (result.Any())
                 {
-                    response = result.Select(s => new UserResponse
-                    {
-                        UserId = s.Id,
-                        NickName = s.NickName,
-                        UserName = s.UserName,
-                        Email = s.Email,
-                        CreatedDate = s.CreatedDate,
-                        AppId = s.AppId,
-                        AppName = s.AppName,
-                        MainUserId = s.MainUserId,
-                        Status = s.LockoutEnd != null ? "Locked" : "Normal"
-                    }).ToList();
+                    var userGroup = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
+                    userRole => userRole.RoleId,
+                    role => role.Id,
+                    (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName });
+
+                    response = result.Join(userGroup,
+                        user => user.Id,
+                        userGroup => userGroup.UserId,
+                        (user, userGroup) => new { user, userGroup.Id, userGroup.Name, userGroup.NormalizedName }).Select(x => new ManageUserResponse
+                        {
+                            UserId = x.Id,
+                            NickName = x.user.NickName,
+                            UserName = x.user.UserName,
+                            Email = x.user.Email,
+                            CreatedDate = x.user.CreatedDate,
+                            AppId = x.user.AppId,
+                            AppName = x.user.AppName,
+                            MainUserId = x.user.MainUserId,
+                            Status = x.user.LockoutEnd != null ? "Locked" : "Normal",
+                            RoleId = x.Id,
+                            RoleName = x.Name,
+                            RoleNormalizedName = x.NormalizedName
+                        }).ToList();
                 }
 
-                return new BaseResponse<UserListResponse>
+                return new BaseResponse<ManageUserListResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = new UserListResponse()
+                    Result = new ManageUserListResponse()
                     {
                         Users = response
                     }
@@ -79,7 +91,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText)) );
+                var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText)));
 
                 var users = new List<AppUser>();
                 var metaData = new MetaData();
@@ -103,7 +115,7 @@ namespace Auth.Api.Services
                 var response = new List<UserResponse>();
                 if (users.Any())
                 {
-                    foreach(var s in users)
+                    foreach (var s in users)
                     {
                         var claimsModel = new List<ClaimModel>();
                         if (s != null)
@@ -123,7 +135,7 @@ namespace Auth.Api.Services
                             AppId = s.AppId,
                             AppName = s.AppName,
                             MainUserId = s.MainUserId,
-                            Status = s.LockoutEnd != null ?  "Locked" : "Normal",
+                            Status = s.LockoutEnd != null ? "Locked" : "Normal",
                             Claims = claimsModel
                         };
                         response.Add(userResponse);
@@ -404,7 +416,7 @@ namespace Auth.Api.Services
             }
 
         }
-        
+
         public async Task<BaseResponse<bool>> AddAspNetUsers(UserRegisterRequest request)
         {
             try
@@ -517,7 +529,7 @@ namespace Auth.Api.Services
                             }
                         }
 
-                    if(!string.IsNullOrEmpty(request.Password))
+                    if (!string.IsNullOrEmpty(request.Password))
                     {
                         user.PasswordHash = request.Password;
 
@@ -683,7 +695,7 @@ namespace Auth.Api.Services
                 //List<AppRoleClaim> tmpRoleClaims
                 var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
 
-                if(appRole == null)
+                if (appRole == null)
                 {
                     result = await _roleManager.CreateAsync(new IdentityRole(request.UserGroupName));
                     appRole = await _roleManager.FindByNameAsync(request.UserGroupName);
@@ -754,13 +766,13 @@ namespace Auth.Api.Services
                 };
             }
         }
-        
+
         public async Task<BaseResponse<bool>> DeleteAspNetRoles(UserGroupRequest request)
         {
             try
             {
                 var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
-                var appUsers = (await GetAspNetRoleUsers(request)).Result; 
+                var appUsers = (await GetAspNetRoleUsers(request)).Result;
 
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
@@ -779,7 +791,7 @@ namespace Auth.Api.Services
 
                     var addResult = await UpdateAspNetUserRole(userRequest);
                 }
-                
+
                 if (result.Succeeded)
                 {
                     return new BaseResponse<bool>

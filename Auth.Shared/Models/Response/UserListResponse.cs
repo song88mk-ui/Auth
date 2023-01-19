@@ -10,4 +10,14 @@
         public List<UserResponse> Users { get; set; }
         public MetaData MetaData { get; set; }
     }
+    public class ManageUserListResponse
+    {
+        public ManageUserListResponse()
+        {
+            Users = new List<ManageUserResponse>();
+        }
+
+        public List<ManageUserResponse> Users { get; set; }
+        public MetaData MetaData { get; set; }
+    }
 }
