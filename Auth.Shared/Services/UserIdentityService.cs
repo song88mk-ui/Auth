@@ -305,6 +305,7 @@ namespace Auth.Api.Services
                               {
                                   UserId = u.Id,
                                   UserName = u.UserName,
+                                  MainUserId = u.MainUserId,
                               }).ToList();
 
                 return new BaseResponse<List<UserResponse>>
