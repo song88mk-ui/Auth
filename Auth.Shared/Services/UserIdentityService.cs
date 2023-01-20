@@ -272,6 +272,7 @@ namespace Auth.Api.Services
                                    UserId = users.Id,
                                    NickName = users.NickName,
                                    UserName = users.UserName,
+                                   Password = users.PasswordHash,
                                    Email = users.Email,
                                    CreatedDate = users.CreatedDate,
                                    AppId = users.AppId,
