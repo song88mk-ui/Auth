@@ -15,11 +15,10 @@ namespace Auth.Api.Services
         Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
-        Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", UserSorting sortby = UserSorting.SortByCreateDateDesc, bool showSuperAdmin = false);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
         Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request);
         Task<AppRole> GetAspNetUsersRole(AppUser user);
-        Task<BaseResponse<List<UserResponse>>> GetAspNetRoleUsers(UserGroupRequest request);
+        Task<BaseResponse<UserListResponse>> GetAspNetRoleUsers(UserGroupRequest request, bool isShowSuperAdmin = false);
         Task<string> GetAspNetUsersRoleId(string userid);
         Task<List<ClaimModel>> GetAspNetRoleClaims(string roleId);
         Task<List<ClaimModel>> GetAspNetRoleClaimsByName(string roleName);

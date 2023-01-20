@@ -92,12 +92,12 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-        [HttpGet("list")]
-        public async Task<IActionResult> GetManageUserList([FromQuery] string? search = null, [FromQuery] UserSorting sortby = UserSorting.SortByCreateDateDesc, [FromQuery] bool isShowSuperAdmin = false)
+        [HttpPost("list")]
+        public async Task<IActionResult> GetManageUserList([FromBody] UserGroupRequest user, [FromQuery] bool isShowSuperAdmin = false)
         {
             try
             {
-                var result = await _userIdentityService.GetManageAspNetUsersList(search ?? "", sortby, isShowSuperAdmin);
+                var result = await _userIdentityService.GetAspNetRoleUsers(user, isShowSuperAdmin);
 
                 switch (result.StatusCode)
                 {
@@ -152,7 +152,7 @@ namespace Auth.Api.Controllers
         }
 
         [HttpPost("usergroup/list")]
-        public async Task<IActionResult> GetUserGroupList([FromBody] UserGroupListRequest request)
+        public async Task<IActionResult> GetUserGroupList([FromBody] UserGroupListRequest? request = null)
         {
             var result = await _userIdentityService.GetAspNetRolesList(request);
 

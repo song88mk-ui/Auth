@@ -5,6 +5,8 @@
         public UserGroupListResponse()
         {
             UserGroups = new List<UserGroupResponse>();
+            MetaData = new MetaData();
+            MetaData.PageSize = 0;
         }
 
         public List<UserGroupResponse> UserGroups { get; set; }

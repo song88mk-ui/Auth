@@ -5,9 +5,14 @@ using Auth.Shared.Models.Request;
 using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using System.Collections.Immutable;
+using System.Globalization;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Transactions;
+using System.Xml.Schema;
 
 namespace Auth.Api.Services
 {
@@ -29,106 +34,6 @@ namespace Auth.Api.Services
         #endregion
 
         #region Methods
-        {
-            try
-            {
-                var result = _userManager.Users.AsNoTracking().Where(x => string.IsNullOrWhiteSpace(x.MainUserId)).ToList();
-
-                if (!string.IsNullOrEmpty(search))
-                    result = result.Where(result => result.UserName.ToLower().Contains(search.ToLower())).ToList();
-
-                if (!showSuperAdmin)
-                    result = result.Where(result => result.UserName.ToLower() != "fci-admin").ToList();
-
-
-                var response = new List<ManageUserResponse>();
-                if (result.Any())
-                {
-                    var userGroups = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
-                    userRole => userRole.RoleId,
-                    role => role.Id,
-                    (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName });
-
-                    //response = result.Join(userGroups,
-                    //    user => user.Id,
-                    //    userGroup => userGroup.UserId,
-                    //    (user, userGroup) => new { user, userGroup.Id, userGroup.Name, userGroup.NormalizedName }).Select(x => new ManageUserResponse
-                    //    {
-                    //        UserId = x.Id,
-                    //        NickName = x.user.NickName,
-                    //        UserName = x.user.UserName,
-                    //        Email = x.user.Email,
-                    //        CreatedDate = x.user.CreatedDate,
-                    //        AppId = x.user.AppId,
-                    //        AppName = x.user.AppName,
-                    //        MainUserId = x.user.MainUserId,
-                    //        Status = x.user.LockoutEnd != null ? "Locked" : "Normal",
-                    //        RoleId = x.Id,
-                    //        RoleName = x.Name,
-                    //        RoleNormalizedName = x.NormalizedName
-                    //    }).ToList();
-
-                    response = new List<ManageUserResponse>();
-                    foreach(var user in result)
-                    {
-                        var userGroup = userGroups.Where(x => x.UserId == user.Id).FirstOrDefault();
-
-                        response.Add(new ManageUserResponse()
-                        {
-                            UserId = user.Id,
-                            NickName = user.NickName,
-                            UserName = user.UserName,
-                            Email = user.Email,
-                            CreatedDate = user.CreatedDate,
-                            AppId = user.AppId,
-                            AppName = user.AppName,
-                            MainUserId = user.MainUserId,
-                            Status = user.LockoutEnd != null ? "Locked" : "Normal",
-                            RoleId = userGroup.Id,
-                            RoleName = userGroup.Name,
-                            RoleNormalizedName = userGroup.NormalizedName
-                        });
-                    }
-                }
-
-                switch ((int)sortby)
-                {
-                    case 0:
-                        response = response.OrderBy(x => x.UserName).ToList();
-                        break;
-                    case 1:
-                        response = response.OrderByDescending(x => x.UserName).ToList();
-                        break;
-                    case 2:
-                        response = response.OrderBy(x => x.CreatedDate).ToList();
-                        break;
-                    default:
-                        response = response.OrderByDescending(x => x.CreatedDate).ToList();
-                        break;
-                }
-
-                return new BaseResponse<ManageUserListResponse>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new ManageUserListResponse()
-                    {
-                        Users = response
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<ManageUserListResponse>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})",
-                    Result = new ManageUserListResponse()
-                };
-            }
-
-        }
-
         public async Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request)
         {
             try
@@ -220,12 +125,11 @@ namespace Auth.Api.Services
                 if (!request.ShowSuperAdmin)
                     query = query.Where(c => c.Name.ToLower() != "super admin");
 
+                var rowCount = query.Count();
+                var skip = request.PageSize == -1 ? 0 : (request.Page - 1) * request.PageSize;
+                var totalPage = request.PageSize == -1 ? 0 : ((rowCount - 1) / request.PageSize) + 1;
 
-                var totalCount = query.Count();
-                var skip = (request.Page - 1) * request.PageSize;
-                var totalPage = ((totalCount - 1) / request.PageSize) + 1;
-
-                var roles = query.Skip(skip).Take(request.PageSize).ToList();
+                var roles = query.Skip(skip).Take(request.PageSize == -1? rowCount : request.PageSize).ToList();
 
                 var result = new UserGroupListResponse();
 
@@ -245,7 +149,7 @@ namespace Auth.Api.Services
 
                 result.MetaData = new MetaData
                 {
-                    TotalCount = totalCount,
+                    TotalCount = rowCount,
                     CurrentPage = request.Page,
                     PageSize = request.PageSize,
                     TotalPages = totalPage
@@ -345,33 +249,51 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<BaseResponse<List<UserResponse>>> GetAspNetRoleUsers(UserGroupRequest request)
+        public async Task<BaseResponse<UserListResponse>> GetAspNetRoleUsers(UserGroupRequest request, bool isShowSuperAdmin = false)
         {
             try
             {
-                var userRoles = _userIdentityContext.UserRoles.AsNoTracking().ToList();
-                var users = _userManager.Users.AsNoTracking().ToList();
+                var metaData = new MetaData();
+                var users = GetUserList(request.Selection, ref metaData, request.SearchText, request.SortBy, isShowSuperAdmin);
 
-                var result = (from ur in userRoles
-                              join u in users on ur.UserId equals u.Id
-                              where ur.RoleId == request.UserGroupId
-                              select new UserResponse
-                              {
-                                  UserId = u.Id,
-                                  UserName = u.UserName,
-                                  MainUserId = u.MainUserId,
-                              }).ToList();
+                var result = new UserListResponse();
+                if (users.Any())
+                {
+                    var userGroups = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
+                                     userRole => userRole.RoleId,
+                                     role => role.Id,
+                                     (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName }).ToList();
 
-                return new BaseResponse<List<UserResponse>>
+                    result.Users = users.Join(userGroups,
+                               user => user.Id,
+                               userGroup => userGroup.UserId,
+                               (users, userGroups) => new UserResponse()
+                               {
+                                   UserId = users.Id,
+                                   NickName = users.NickName,
+                                   UserName = users.UserName,
+                                   Email = users.Email,
+                                   CreatedDate = users.CreatedDate,
+                                   AppId = users.AppId,
+                                   AppName = users.AppName,
+                                   MainUserId = users.MainUserId,
+                                   Status = users.LockoutEnd != null ? "Locked" : "Normal",
+                                   RoleId = userGroups.Id,
+                                   RoleName = userGroups.Name,
+                               }).ToList();
+                    result.MetaData = metaData;
+                }
+
+                return new BaseResponse<UserListResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = result ?? new List<UserResponse>()
+                    Result = result ?? new UserListResponse()
                 };
             }
             catch (Exception ex)
             {
-                return new BaseResponse<List<UserResponse>>
+                return new BaseResponse<UserListResponse>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
@@ -515,12 +437,6 @@ namespace Auth.Api.Services
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
                 }
-
-                //return new BaseResponse<bool>
-                //{
-                //    StatusCode = StatusCode.Success,
-                //    Message = StatusCode.Success.ToString()
-                //};
             }
             catch (Exception ex)
             {
@@ -814,7 +730,7 @@ namespace Auth.Api.Services
             try
             {
                 var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
-                var appUsers = (await GetAspNetRoleUsers(request)).Result;
+                var appUsers = (await GetAspNetRoleUsers(request)).Result.Users;
 
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
@@ -1009,6 +925,68 @@ namespace Auth.Api.Services
         {
             _roleManager.Dispose();
             _userManager.Dispose();
+        }
+        #endregion
+        #region Utilities
+        private List<AppUser> GetUserList(string selection, ref MetaData metaData, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
+        {
+            var users = new List<AppUser>();
+            search = search.ToLower();
+
+            if(metaData == null)
+                metaData = new MetaData();
+
+            if (selection.Trim().ToUpper() == "ALL")
+            {
+                users = _userManager.Users.AsNoTracking().Where(x => x.UserName.ToLower().Contains(search) || 
+                (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
+                x.Email.ToLower().Contains(search)).ToList();
+            }
+            else
+            {
+                users = _userManager.Users.AsNoTracking().Where(x => x.MainUserId == selection).ToList();
+            }
+
+            if (!isShowSuperAdmin)
+                users.Remove(users.Where(x => x.UserName == "fci-admin").FirstOrDefault());
+
+            if (users.Any())
+            {
+                var rowCount = _userManager.Users.Count();
+                var skip = metaData == null ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;
+                var totalPage = metaData == null ? 0 : ((rowCount - 1) / metaData.PageSize) + 1;
+
+                if (metaData.PageSize == 0)
+                    metaData.PageSize = rowCount;
+
+                switch ((int)sortBy)
+                {
+                    case 0:
+                        users = users.OrderBy(x => x.UserName).ToList();
+                        break;
+                    case 1:
+                        users = users.OrderByDescending(x => x.UserName).ToList();
+                        break;
+                    case 2:
+                        users = users.OrderBy(x => x.CreatedDate).ToList();
+                        break;
+                    default:
+                        users = users.OrderByDescending(x => x.CreatedDate).ToList();
+                        break;
+                }
+
+                users = users.Skip(skip).Take(metaData == null ? rowCount : metaData.PageSize).ToList();
+
+                metaData = new MetaData
+                {
+                    TotalCount = rowCount,
+                    CurrentPage = metaData.CurrentPage,
+                    PageSize = metaData.PageSize,
+                    TotalPages = totalPage
+                };
+            }
+
+            return users;
         }
         #endregion
     }
