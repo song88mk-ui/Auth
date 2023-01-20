@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Auth.Shared.Data.Auth.Entities
+﻿namespace Auth.Shared.Data.Auth.Entities
 {
     public class Permission
     {
         public Guid PermissionId { get; set; }
-        public string Category { get; set; }
+        public int CategoryId { get; set; }
+        public string CategoryName { get; set; }
+        public string SubCategoryName { get; set; }
+        public string GroupName { get; set; }
         public string Name { get; set; }
         public string ClaimType { get; set; }
         public bool HasReadOnly { get; set; }
