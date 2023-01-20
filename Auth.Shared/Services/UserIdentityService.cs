@@ -29,7 +29,6 @@ namespace Auth.Api.Services
         #endregion
 
         #region Methods
-        public async Task<BaseResponse<ManageUserListResponse>> GetManageAspNetUsersList(string search = "", UserSorting sortby = UserSorting.SortByCreateDateDesc, bool showSuperAdmin = false)
         {
             try
             {
