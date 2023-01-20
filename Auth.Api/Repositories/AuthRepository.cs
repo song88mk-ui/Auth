@@ -330,13 +330,16 @@ namespace Auth.Api.Repositories
 
             var permList = result.Select(a => new PermissionModel()
             {
-                Category = a.Category,
+                CategoryId = a.CategoryId,
+                CategoryName = a.CategoryName,
+                SubCategoryName = a.SubCategoryName,
+                GroupName = a.GroupName,
                 Name = a.Name,
                 ClaimType = a.ClaimType,
-                HasReadOnly = a.HasReadOnly,
+                HasReadOnly = a.HasReadOnly,    
                 SortOrder = a.SortOrder,
                 IsSubUser = a.IsSubUser
-            }).OrderBy(x => x.Category).ThenBy(o => o.SortOrder).ToList();
+            }).OrderBy(x => x.CategoryName).ThenBy(o => o.SortOrder).ToList();
 
             return new BaseResponse<PermissionResponse>
             {
