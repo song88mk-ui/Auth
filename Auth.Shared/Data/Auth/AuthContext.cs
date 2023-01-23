@@ -8,6 +8,7 @@ namespace Auth.Shared.Data.Auth
         public AuthContext(DbContextOptions<AuthContext> options) : base(options) { }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<ActivityLog>().HasKey(k => new { k.Id });
             modelBuilder.Entity<AspNetRoleClaims>().HasKey(k => new { k.Id });
             modelBuilder.Entity<AspNetRoles>().HasKey(k => new { k.Id });
             modelBuilder.Entity<AspNetUserClaims>().HasKey(k => new { k.Id });
@@ -16,6 +17,7 @@ namespace Auth.Shared.Data.Auth
             modelBuilder.Entity<AspNetUserTokens>().HasKey(k => new { k.UserId, k.LoginProvider, k.Name });
             modelBuilder.Entity<Permission>().HasKey(k => new { k.PermissionId });
         }
+        public DbSet<ActivityLog> ActivityLog { get; set; }
         public DbSet<AspNetRoleClaims> AspNetRoleClaims { get; set; }
         public DbSet<AspNetRoles> AspNetRoles { get; set; }
         public DbSet<AspNetUserClaims> AspNetUserClaims { get; set; }

@@ -14,9 +14,12 @@ using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Validations;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Reflection.Metadata;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -47,7 +50,7 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
         }
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string role, string provider, string name, string mainUserId)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId)
         {
 
             var token = new SecurityTokenDescriptor
@@ -73,7 +76,7 @@ namespace Auth.Api.Repositories
             var userClaims = new List<ClaimModel>();
 
 
-            if (role.ToLower() == "super admin")
+            if (role.Name.ToLower() == "super admin")
             {
                 var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
@@ -101,6 +104,9 @@ namespace Auth.Api.Repositories
                 }
             }
 
+            token.Subject.AddClaim(new Claim("RoleId", role.Id.ToString()));
+            token.Subject.AddClaim(new Claim("RoleName", role.Name.ToString()));
+
             return token;
         }
         private async Task SaveToken(AppUser user, string token, LoginModel? loginModel = null)
@@ -122,6 +128,18 @@ namespace Auth.Api.Repositories
                     LoginProvider = loginModel.Provider,
                     Name = loginModel.Name,
                     Value = token
+                });
+
+                _authContext.ActivityLog.Add(new ActivityLog()
+                {
+                    UserId = user.Id,
+                    Token = token,
+                    BrowserInfo = loginModel.BrowserInfo,
+                    BrowserVersion = loginModel.BrowserVersion,
+                    OperatingSystem = loginModel.OperatingSystem,
+                    IpAddress = loginModel.IpAddress,
+                    Country = loginModel.Country,
+                    Date = DateTime.UtcNow
                 });
 
                 _authContext.SaveChanges();
@@ -164,10 +182,9 @@ namespace Auth.Api.Repositories
 
                     var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                    var token = GenerateToken(user.Id, role.Name, content.Provider, content.Name, user.MainUserId);
+                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
-
 
                     SaveToken(user, accessToken, content);
 
@@ -309,7 +326,7 @@ namespace Auth.Api.Repositories
                     var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
                     var tokenHandler = new JwtSecurityTokenHandler();
-                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, role.Name, provider, name, user.MainUserId)));
+                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, role, provider, name, user.MainUserId)));
 
                     SaveToken(user, token);
                 }
@@ -334,8 +351,6 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-
-
         public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
         {
             var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
@@ -364,5 +379,26 @@ namespace Auth.Api.Repositories
             };
         }
 
+        public async Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId)
+        {
+            try
+            {
+                return new BaseResponse<ActivityLogResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = null
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<ActivityLogResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = ex.Message,
+                    Result = null
+                };
+            }
+        }
     }
 }

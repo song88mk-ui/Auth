@@ -4,8 +4,11 @@ using Auth.Api.Services;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
+using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
+using System.IdentityModel.Tokens.Jwt;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
@@ -218,6 +221,30 @@ namespace Auth.Api.Controllers
                     default:
                         return BadRequest(result);
                 }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+        [HttpGet("activitylog/list")]
+        public async Task<IActionResult> GetActivityLogList()
+        {
+            try
+            {
+                var token = Request.Headers.Authorization.ToString().Replace("Bearer ", "");
+                var userId = JwtParser.ParseClaimsFromJwt(token).ToList().Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+
+                //switch (result.StatusCode)
+                //{
+                //    case AuthStatusCode.Success:
+                //        return Ok(result);
+                //    case AuthStatusCode.Unauthorized:
+                //        return Unauthorized(result);
+                //    default:
+                //        return BadRequest(result);
+                //}
+                return Ok();
             }
             catch (Exception ex)
             {
