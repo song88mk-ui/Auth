@@ -396,7 +396,7 @@ namespace Auth.Api.Repositories
                     OperatingSystem = x.OperatingSystem,
                     IpAddress = x.IpAddress,
                     Country = x.Country,
-                    Date = x.Date
+                    Date = DateTime.Parse(x.Date.ToString())
                 }).ToList();
 
                 return new BaseResponse<ActivityLogResponse>
