@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Transactions;
 using System.Xml.Schema;
 
@@ -129,7 +130,7 @@ namespace Auth.Api.Services
                 var skip = request.PageSize == -1 ? 0 : (request.Page - 1) * request.PageSize;
                 var totalPage = request.PageSize == -1 ? 0 : ((rowCount - 1) / request.PageSize) + 1;
 
-                var roles = query.Skip(skip).Take(request.PageSize == -1? rowCount : request.PageSize).ToList();
+                var roles = query.Skip(skip).Take(request.PageSize == -1 ? rowCount : request.PageSize).ToList();
 
                 var result = new UserGroupListResponse();
 
@@ -253,8 +254,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var metaData = new MetaData();
-                var users = GetUserList(request.Selection, ref metaData, request.SearchText, request.SortBy, isShowSuperAdmin);
+                var users = GetUserList(request.Selection, request.SearchText, request.SortBy, isShowSuperAdmin);
 
                 var result = new UserListResponse();
                 if (users.Any())
@@ -281,8 +281,25 @@ namespace Auth.Api.Services
                                    Status = users.LockoutEnd != null ? "Locked" : "Normal",
                                    RoleId = userGroups.Id,
                                    RoleName = userGroups.Name,
-                               }).ToList();
-                    result.MetaData = metaData;
+                               }).Where(x => !string.IsNullOrWhiteSpace(request.UserGroupId) && x.RoleId == request.UserGroupId).ToList();
+
+                    var rowCount = result.Users.Count();
+                    var skip = request.MetaData == null ? 0 : (request.MetaData.CurrentPage - 1) * request.MetaData.PageSize;
+                    var totalPage = request.MetaData == null ? 0 : ((rowCount - 1) / request.MetaData.PageSize) + 1;
+
+                    if (request.MetaData.PageSize == 0)
+                        request.MetaData.PageSize = rowCount;
+
+                    result.Users = result.Users.Skip(skip).Take(request.MetaData == null ? rowCount : request.MetaData.PageSize).ToList();
+
+                    request.MetaData = new MetaData
+                    {
+                        TotalCount = rowCount,
+                        CurrentPage = request.MetaData.CurrentPage,
+                        PageSize = request.MetaData.PageSize,
+                        TotalPages = totalPage
+                    };
+                    result.MetaData = request.MetaData;
                 }
 
                 return new BaseResponse<UserListResponse>
@@ -465,6 +482,11 @@ namespace Auth.Api.Services
                     user.LockoutEnd = null;
 
                 user.NickName = request.NickName;
+
+                if (!string.IsNullOrWhiteSpace(request.Password))
+                {
+                    user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
+                }
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
@@ -929,17 +951,14 @@ namespace Auth.Api.Services
         }
         #endregion
         #region Utilities
-        private List<AppUser> GetUserList(string selection, ref MetaData metaData, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
+        private List<AppUser> GetUserList(string selection, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
         {
             var users = new List<AppUser>();
             search = search.ToLower();
 
-            if(metaData == null)
-                metaData = new MetaData();
-
             if (selection.Trim().ToUpper() == "ALL")
             {
-                users = _userManager.Users.AsNoTracking().Where(x => x.UserName.ToLower().Contains(search) || 
+                users = _userManager.Users.AsNoTracking().Where(x => x.UserName.ToLower().Contains(search) ||
                 (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
                 x.Email.ToLower().Contains(search)).ToList();
             }
@@ -953,13 +972,6 @@ namespace Auth.Api.Services
 
             if (users.Any())
             {
-                var rowCount = _userManager.Users.Count();
-                var skip = metaData == null ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;
-                var totalPage = metaData == null ? 0 : ((rowCount - 1) / metaData.PageSize) + 1;
-
-                if (metaData.PageSize == 0)
-                    metaData.PageSize = rowCount;
-
                 switch ((int)sortBy)
                 {
                     case 0:
@@ -975,16 +987,6 @@ namespace Auth.Api.Services
                         users = users.OrderByDescending(x => x.CreatedDate).ToList();
                         break;
                 }
-
-                users = users.Skip(skip).Take(metaData == null ? rowCount : metaData.PageSize).ToList();
-
-                metaData = new MetaData
-                {
-                    TotalCount = rowCount,
-                    CurrentPage = metaData.CurrentPage,
-                    PageSize = metaData.PageSize,
-                    TotalPages = totalPage
-                };
             }
 
             return users;

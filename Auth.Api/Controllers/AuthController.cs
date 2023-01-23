@@ -1,6 +1,7 @@
 ﻿using Auth.Api.ActionFilters;
 using Auth.Api.Repositories;
 using Auth.Shared.Models;
+using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
@@ -24,6 +25,25 @@ namespace Auth.Api.Controllers
         {
             try
             {
+                var browser = "";
+                var os = "";
+                var ipAddress = "";
+
+                var request = HttpContext.Request;
+
+                if (Request.Headers.TryGetValue("Client-Info", out var xInfo))
+                {
+                    browser = xInfo;
+                };
+                if (Request.Headers.TryGetValue("Client-OS", out var xOs))
+                {
+                    os = xOs;
+                };
+                if (Request.Headers.TryGetValue("Client-IpAddress", out var xIpAddress))
+                {
+                    ipAddress = xIpAddress;
+                };
+
                 var result = await this._authRepository.Login(usersdata);
 
                 switch (result.StatusCode)
