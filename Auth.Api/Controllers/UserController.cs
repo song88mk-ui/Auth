@@ -235,16 +235,17 @@ namespace Auth.Api.Controllers
                 var token = Request.Headers.Authorization.ToString().Replace("Bearer ", "");
                 var userId = JwtParser.ParseClaimsFromJwt(token).ToList().Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
 
-                //switch (result.StatusCode)
-                //{
-                //    case AuthStatusCode.Success:
-                //        return Ok(result);
-                //    case AuthStatusCode.Unauthorized:
-                //        return Unauthorized(result);
-                //    default:
-                //        return BadRequest(result);
-                //}
-                return Ok();
+                var result = await _authRepository.GetActivityLogList(userId);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
             }
             catch (Exception ex)
             {

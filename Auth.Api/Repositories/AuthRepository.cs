@@ -80,15 +80,18 @@ namespace Auth.Api.Repositories
             {
                 var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
-                userClaims = permissions.Select(p => new ClaimModel { ClaimType = p.ClaimType, 
-                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1" }).ToList();
+                userClaims = permissions.Select(p => new ClaimModel
+                {
+                    ClaimType = p.ClaimType,
+                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
+                }).ToList();
             }
             else if (isSubUser)
                 userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
                     .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
             else
                 userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
-                    (claims, roleClaims) => new  { Claims = claims, RoleClaims = roleClaims })
+                    (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
                     .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
                     .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
 
@@ -166,7 +169,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                if(user.LockoutEnd != null)
+                if (user.LockoutEnd != null)
                 {
                     return new BaseResponse<TokenModel>
                     {
@@ -363,7 +366,7 @@ namespace Auth.Api.Repositories
                 GroupName = a.GroupName,
                 Name = a.Name,
                 ClaimType = a.ClaimType,
-                HasReadOnly = a.HasReadOnly,    
+                HasReadOnly = a.HasReadOnly,
                 SortOrder = a.SortOrder,
                 IsSubUser = a.IsSubUser
             }).OrderBy(x => x.CategoryName).ThenBy(o => o.SortOrder).ToList();
@@ -383,11 +386,24 @@ namespace Auth.Api.Repositories
         {
             try
             {
+                var activityLog = new ActivityLogResponse();
+                activityLog.ActivityLogs = _authContext.ActivityLog.Where(x => x.UserId == userId).Select(x => new ActivityLogModel
+                {
+                    UserId = x.UserId,
+                    Token = x.Token,
+                    BrowserInfo = x.BrowserInfo,
+                    BrowserVersion = x.BrowserVersion,
+                    OperatingSystem = x.OperatingSystem,
+                    IpAddress = x.IpAddress,
+                    Country = x.Country,
+                    Date = x.Date
+                }).ToList();
+
                 return new BaseResponse<ActivityLogResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = null
+                    Result = activityLog
                 };
             }
             catch (Exception ex)

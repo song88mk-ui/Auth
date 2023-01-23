@@ -8,6 +8,15 @@ namespace Auth.Shared.Models.Response
 {
     public class ActivityLogResponse
     {
+        public ActivityLogResponse()
+        {
+            ActivityLogs = new List<ActivityLogModel>();
+        }
+        public List<ActivityLogModel> ActivityLogs { get; set; }
+    }
+
+    public class ActivityLogModel
+    {
         public string UserId { get; set; }
         public string Token { get; set; }
         public string BrowserInfo { get; set; }
