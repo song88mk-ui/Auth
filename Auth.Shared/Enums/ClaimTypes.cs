@@ -8,7 +8,7 @@ namespace Auth.Shared.Enums
 {
     public enum ClaimTypes
     {
-        SBC_Client_Access,
+        SBC_Clients_Access,
         SBC_TopLeagues_Access,
         SBC_TopFixtures_Access,
         SBC_ParlayBonus_Access,
