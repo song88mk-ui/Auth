@@ -78,7 +78,7 @@ namespace Auth.Api.Repositories
                 var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
                 userClaims = permissions.Select(p => new ClaimModel { ClaimType = p.ClaimType, 
-                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Client_Access.ToString().Replace("_", ".") ? "" : "1" }).ToList();
+                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1" }).ToList();
             }
             else if (isSubUser)
                 userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
@@ -91,7 +91,7 @@ namespace Auth.Api.Repositories
 
             foreach (var item in userClaims)
             {
-                if (item.ClaimType == Shared.Enums.ClaimTypes.SBC_Client_Access.ToString().Replace("_", "."))
+                if (item.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
                 {
                     token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
                 }
