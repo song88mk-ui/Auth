@@ -47,7 +47,7 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
         }
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string provider, string name, string mainUserId)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, string role, string provider, string name, string mainUserId)
         {
 
             var token = new SecurityTokenDescriptor
@@ -70,20 +70,28 @@ namespace Auth.Api.Repositories
                 if (!string.IsNullOrWhiteSpace(mainUserId))
                     isSubUser = true;
 
-            var userClaims = new[]  { new { ClaimType = "string", ClaimValue = "string" } }.ToList();
+            var userClaims = new List<ClaimModel>();
 
-            if (isSubUser)
+
+            if (role.ToLower() == "super admin")
+            {
+                var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
+
+                userClaims = permissions.Select(p => new ClaimModel { ClaimType = p.ClaimType, 
+                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Client_Access.ToString().Replace("_", ".") ? "" : "1" }).ToList();
+            }
+            else if (isSubUser)
                 userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
-                    .Select(x => new { x.ClaimType, x.ClaimValue }).ToList();
+                    .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
             else
                 userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
-                    (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                    (claims, roleClaims) => new  { Claims = claims, RoleClaims = roleClaims })
                     .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
-                    .Select(p => new { p.Claims.ClaimType, p.Claims.ClaimValue }).ToList();
+                    .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
 
             foreach (var item in userClaims)
             {
-                if (item.ClaimType == Shared.Enums.ClaimTypes.SportsbookClient_Client_Access.ToString().Replace("_", "."))
+                if (item.ClaimType == Shared.Enums.ClaimTypes.SBC_Client_Access.ToString().Replace("_", "."))
                 {
                     token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
                 }
@@ -154,7 +162,9 @@ namespace Auth.Api.Repositories
                 {
                     var accessToken = "";
 
-                    var token = GenerateToken(user.Id, content.Provider, content.Name, user.MainUserId);
+                    var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
+
+                    var token = GenerateToken(user.Id, role.Name, content.Provider, content.Name, user.MainUserId);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
@@ -296,8 +306,10 @@ namespace Auth.Api.Repositories
                         };
                     }
 
+                    var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
+
                     var tokenHandler = new JwtSecurityTokenHandler();
-                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, provider, name, user.MainUserId)));
+                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, role.Name, provider, name, user.MainUserId)));
 
                     SaveToken(user, token);
                 }
