@@ -228,13 +228,10 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpGet("activitylog/list")]
-        public async Task<IActionResult> GetActivityLogList()
+        public async Task<IActionResult> GetActivityLogList([FromQuery] string userId)
         {
             try
             {
-                var token = Request.Headers.Authorization.ToString().Replace("Bearer ", "");
-                var userId = JwtParser.ParseClaimsFromJwt(token).ToList().Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
-
                 var result = await _authRepository.GetActivityLogList(userId);
 
                 switch (result.StatusCode)

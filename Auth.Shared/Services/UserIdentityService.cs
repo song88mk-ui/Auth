@@ -281,14 +281,17 @@ namespace Auth.Api.Services
                                    Status = users.LockoutEnd != null ? "Locked" : "Normal",
                                    RoleId = userGroups.Id,
                                    RoleName = userGroups.Name,
-                               }).Where(x => !string.IsNullOrWhiteSpace(request.UserGroupId) && x.RoleId == request.UserGroupId).ToList();
+                               }).ToList();
+                    if (!string.IsNullOrWhiteSpace(request.UserGroupId))
+                        result.Users.Where(x => x.RoleId == request.UserGroupId);
 
                     var rowCount = result.Users.Count();
+                    if (request.MetaData.PageSize == 0)
+                        request.MetaData.PageSize = rowCount;
+
                     var skip = request.MetaData == null ? 0 : (request.MetaData.CurrentPage - 1) * request.MetaData.PageSize;
                     var totalPage = request.MetaData == null ? 0 : ((rowCount - 1) / request.MetaData.PageSize) + 1;
 
-                    if (request.MetaData.PageSize == 0)
-                        request.MetaData.PageSize = rowCount;
 
                     result.Users = result.Users.Skip(skip).Take(request.MetaData == null ? rowCount : request.MetaData.PageSize).ToList();
 
@@ -834,8 +837,8 @@ namespace Auth.Api.Services
         {
             try
             {
-                var roleName = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
-                var role = await _roleManager.FindByNameAsync(roleName);
+                var roleName = _userManager.GetRolesAsync(user).Result.FirstOrDefault();
+                var role = _roleManager.FindByNameAsync(roleName).Result;
 
                 return new BaseResponse<IdentityRole>
                 {
