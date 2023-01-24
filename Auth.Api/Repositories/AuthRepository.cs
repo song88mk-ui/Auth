@@ -398,7 +398,7 @@ namespace Auth.Api.Repositories
                     IpAddress = x.IpAddress,
                     Country = x.Country,
                     Date = DateTime.Parse(x.Date.ToString())
-                }).OrderByDescending(x => x.Date).ToList();
+                }).ToList().OrderByDescending(x => x.Date);
 
                 var rowCount = activityLog.Count();
                 var skip = metaData.PageSize == -1 ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;

@@ -227,7 +227,7 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-        [HttpGet("activitylog/list")]
+        [HttpPost("activitylog/list")]
         public async Task<IActionResult> GetActivityLogList([FromQuery] string userId, [FromBody] MetaData metaData)
         {
             try
