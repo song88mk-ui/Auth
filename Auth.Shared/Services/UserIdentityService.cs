@@ -283,7 +283,7 @@ namespace Auth.Api.Services
                                    RoleName = userGroups.Name,
                                }).ToList();
                     if (!string.IsNullOrWhiteSpace(request.UserGroupId))
-                        result.Users.Where(x => x.RoleId == request.UserGroupId);
+                        result.Users = result.Users.Where(x => x.RoleId == request.UserGroupId).ToList();
 
                     var rowCount = result.Users.Count();
                     if (request.MetaData.PageSize == 0)
