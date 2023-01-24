@@ -25,6 +25,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Transactions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Auth.Api.Repositories
 {
@@ -382,12 +383,12 @@ namespace Auth.Api.Repositories
             };
         }
 
-        public async Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId)
+        public async Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, MetaData metaData)
         {
             try
             {
-                var activityLog = new ActivityLogResponse();
-                activityLog.ActivityLogs = _authContext.ActivityLog.Where(x => x.UserId == userId).Select(x => new ActivityLogModel
+                var result = new ActivityLogResponse();
+                var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).Select(x => new ActivityLogModel
                 {
                     UserId = x.UserId,
                     Token = x.Token,
@@ -397,13 +398,26 @@ namespace Auth.Api.Repositories
                     IpAddress = x.IpAddress,
                     Country = x.Country,
                     Date = DateTime.Parse(x.Date.ToString())
-                }).ToList();
+                }).OrderByDescending(x => x.Date).ToList();
+
+                var rowCount = activityLog.Count();
+                var skip = metaData.PageSize == -1 ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;
+                var totalPage = metaData.PageSize == -1 ? 0 : ((rowCount - 1) / metaData.PageSize) + 1;
+
+                result.ActivityLogs = activityLog.Skip(skip).Take(metaData.PageSize == -1 ? rowCount : metaData.PageSize).ToList();
+                result.MetaData = new MetaData()
+                {
+                    TotalCount = rowCount,
+                    CurrentPage = metaData.CurrentPage,
+                    PageSize = metaData.PageSize,
+                    TotalPages = totalPage
+                };
 
                 return new BaseResponse<ActivityLogResponse>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = activityLog
+                    Result = result
                 };
             }
             catch (Exception ex)

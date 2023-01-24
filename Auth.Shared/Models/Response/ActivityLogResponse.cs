@@ -7,5 +7,6 @@
             ActivityLogs = new List<ActivityLogModel>();
         }
         public List<ActivityLogModel> ActivityLogs { get; set; }
+        public MetaData MetaData { get; set; }
     }
 }

@@ -228,11 +228,11 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpGet("activitylog/list")]
-        public async Task<IActionResult> GetActivityLogList([FromQuery] string userId)
+        public async Task<IActionResult> GetActivityLogList([FromQuery] string userId, [FromBody] MetaData metaData)
         {
             try
             {
-                var result = await _authRepository.GetActivityLogList(userId);
+                var result = await _authRepository.GetActivityLogList(userId, metaData);
 
                 switch (result.StatusCode)
                 {
