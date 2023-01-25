@@ -9,6 +9,6 @@ namespace Auth.Api.Repositories
         Task<BaseResponse<bool>> Logout(string token);
         Task<BaseResponse<TokenModel>> Authenticate(string token);
         Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly);
-        Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, MetaData metaData);
+        Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, string search, MetaData metaData);
     }
 }

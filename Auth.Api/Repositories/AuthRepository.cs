@@ -383,7 +383,7 @@ namespace Auth.Api.Repositories
             };
         }
 
-        public async Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, MetaData metaData)
+        public async Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, string search, MetaData metaData)
         {
             try
             {
@@ -398,7 +398,18 @@ namespace Auth.Api.Repositories
                     IpAddress = x.IpAddress,
                     Country = x.Country,
                     Date = DateTime.Parse(x.Date.ToString())
-                }).ToList().OrderByDescending(x => x.Date);
+                }).ToList().OrderByDescending(x => x.Date).ToList();
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    activityLog = activityLog.Where(x =>
+                    x.BrowserInfo.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    x.BrowserVersion.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    x.OperatingSystem.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    x.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    x.Country.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+
 
                 var rowCount = activityLog.Count();
                 var skip = metaData.PageSize == -1 ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;

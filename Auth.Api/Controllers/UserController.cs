@@ -227,12 +227,12 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-        [HttpPost("activitylog/list")]
-        public async Task<IActionResult> GetActivityLogList([FromQuery] string userId, [FromBody] MetaData metaData)
+        [HttpPost("activitylog/list/{userId}")]
+        public async Task<IActionResult> GetActivityLogList([FromRoute] string userId, [FromBody] MetaData metaData, [FromQuery] string? search = "")
         {
             try
             {
-                var result = await _authRepository.GetActivityLogList(userId, metaData);
+                var result = await _authRepository.GetActivityLogList(userId, search, metaData);
 
                 switch (result.StatusCode)
                 {
