@@ -671,7 +671,7 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> AddOrUpdateAspNetRoles(UserGroupRequest request)
+        public async Task<BaseResponse<UserGroupResponse>> AddOrUpdateAspNetRoles(UserGroupRequest request)
         {
             try
             {
@@ -720,11 +720,16 @@ namespace Auth.Api.Services
 
                     }
 
-                    return new BaseResponse<bool>
+                    return new BaseResponse<UserGroupResponse>
                     {
                         StatusCode = StatusCode.Success,
                         Message = StatusCode.Success.ToString(),
-                        Result = true
+                        Result = new UserGroupResponse
+                        {
+                            UserGroupId = appRole.Id,
+                            UserGroupName = appRole.Name,
+                            Claims = request.Claims
+                        }
                     };
                 }
                 else
@@ -733,7 +738,7 @@ namespace Auth.Api.Services
                     foreach (IdentityError error in result.Errors)
                         errorMsg += error.Description.ToString() + ",";
 
-                    return new BaseResponse<bool>
+                    return new BaseResponse<UserGroupResponse>
                     {
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')} "
@@ -743,7 +748,7 @@ namespace Auth.Api.Services
             }
             catch (Exception ex)
             {
-                return new BaseResponse<bool>
+                return new BaseResponse<UserGroupResponse>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"

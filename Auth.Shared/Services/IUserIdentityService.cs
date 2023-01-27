@@ -23,7 +23,7 @@ namespace Auth.Api.Services
         Task<List<ClaimModel>> GetAspNetRoleClaims(string roleId);
         Task<List<ClaimModel>> GetAspNetRoleClaimsByName(string roleName);
         Task<List<AppRole>> GetAspNetRole();
-        Task<BaseResponse<bool>> AddOrUpdateAspNetRoles(UserGroupRequest request);
+        Task<BaseResponse<UserGroupResponse>> AddOrUpdateAspNetRoles(UserGroupRequest request);
         Task<BaseResponse<bool>> DeleteAspNetRoles(UserGroupRequest request);
         Task<BaseResponse<AppUser>> GetCurrentUser(ClaimsPrincipal principal);
         Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user);
