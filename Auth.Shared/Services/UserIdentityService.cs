@@ -6,9 +6,11 @@ using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -964,15 +966,30 @@ namespace Auth.Api.Services
             var users = new List<AppUser>();
             search = search.ToLower();
 
-            if (selection.Trim().ToUpper() == "ALL")
+            if (!string.IsNullOrWhiteSpace(selection.Trim()))
             {
-                users = _userManager.Users.AsNoTracking().Where(x => x.UserName.ToLower().Contains(search) ||
-                (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
-                x.Email.ToLower().Contains(search)).ToList();
+                users = _userManager.Users.AsNoTracking().Where(x => (x.MainUserId.ToLower() == selection.ToLower()) &&
+                        (string.IsNullOrWhiteSpace(search) ||
+                        x.UserName.ToLower().Contains(search) ||
+                        (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
+                        x.Email.ToLower().Contains(search))).ToList();
             }
             else
             {
-                users = _userManager.Users.AsNoTracking().Where(x => x.MainUserId == selection).ToList();
+                users = _userManager.Users.AsNoTracking().Where(x => string.IsNullOrWhiteSpace(x.MainUserId) &&
+                        (string.IsNullOrWhiteSpace(search) ||
+                        x.UserName.ToLower().Contains(search) ||
+                        (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
+                        x.Email.ToLower().Contains(search))).ToList();
+            }
+
+            if (!isShowSuperAdmin)
+            {
+                var superAdmin = _roleManager.Roles.AsNoTracking().Where(x => x.Name.Trim().ToUpper() == "SUPERADMIN").FirstOrDefault()?.Id ?? "";
+                users = users.
+                    Join(_userIdentityContext.UserRoles, user => user.Id, userRole => userRole.UserId, (user, userRole) => new { user, userRole.RoleId })
+                    .Where(x => x.RoleId != superAdmin)
+                    .Select(x => x.user).ToList();
             }
 
             if (!isShowSuperAdmin)

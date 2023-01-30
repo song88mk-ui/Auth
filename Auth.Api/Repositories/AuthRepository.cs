@@ -134,17 +134,20 @@ namespace Auth.Api.Repositories
                     Value = token
                 });
 
-                _authContext.ActivityLog.Add(new ActivityLog()
+                if(loginModel != null)
                 {
-                    UserId = user.Id,
-                    Token = token,
-                    BrowserInfo = loginModel.BrowserInfo,
-                    BrowserVersion = loginModel.BrowserVersion,
-                    OperatingSystem = loginModel.OperatingSystem,
-                    IpAddress = loginModel.IpAddress,
-                    Country = loginModel.Country,
-                    Date = DateTime.UtcNow
-                });
+                    _authContext.ActivityLog.Add(new ActivityLog()
+                    {
+                        UserId = user.Id,
+                        Token = token,
+                        BrowserInfo = loginModel.BrowserInfo,
+                        BrowserVersion = loginModel.BrowserVersion,
+                        OperatingSystem = loginModel.OperatingSystem,
+                        IpAddress = loginModel.IpAddress,
+                        Country = loginModel.Country,
+                        Date = DateTime.UtcNow
+                    });
+                }
 
                 _authContext.SaveChanges();
                 scope.Complete();
