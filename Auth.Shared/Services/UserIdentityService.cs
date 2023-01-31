@@ -771,6 +771,7 @@ namespace Auth.Api.Services
 
                     var userRequest = new UserRegisterRequest
                     {
+                        UserId = user.UserId,
                         UserName = user.UserName,
                         Email = user.Email,
                         AppId = user.AppId,
