@@ -765,7 +765,6 @@ namespace Auth.Api.Services
                 var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
                 var appUsers = (await GetAspNetRoleUsers(request)).Result.Users;
 
-                IdentityResult result = await _roleManager.DeleteAsync(appRole);
                 foreach (var user in appUsers)
                 {
                     var claims = await GetAspNetRoleClaimsByName("Default");
@@ -782,6 +781,8 @@ namespace Auth.Api.Services
 
                     var addResult = await UpdateAspNetUserRole(userRequest);
                 }
+
+                IdentityResult result = await _roleManager.DeleteAsync(appRole);
 
                 if (result.Succeeded)
                 {
