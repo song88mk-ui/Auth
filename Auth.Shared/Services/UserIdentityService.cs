@@ -25,11 +25,13 @@ namespace Auth.Api.Services
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly UserIdentityContext _userIdentityContext;
+        private AuthContext _authContext { get; set; }
         #endregion
 
         #region Ctor
-        public UserIdentityService(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext)
+        public UserIdentityService(AuthContext authContext, UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext)
         {
+            _authContext = authContext;
             _userManager = userManager;
             _roleManager = roleManager;
             _userIdentityContext = userIdentityContext;
@@ -115,18 +117,17 @@ namespace Auth.Api.Services
             }
 
         }
-
         public async Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request)
         {
             try
             {
-                var query = _roleManager.Roles.AsNoTracking();
+                var query = _roleManager.Roles.AsNoTracking().ToList();
 
                 if (!string.IsNullOrEmpty(request.SearchText))
-                    query = query.Where(result => result.Name.Contains(request.SearchText));
+                    query = query.Where(result => result.Name.Contains(request.SearchText)).ToList();
 
                 if (!request.ShowSuperAdmin)
-                    query = query.Where(c => c.Name.ToLower() != "super admin");
+                    query = query.Where(c => c.Name.ToLower() != "super admin").ToList();
 
                 var rowCount = query.Count();
                 var skip = request.PageSize == -1 ? 0 : (request.Page - 1) * request.PageSize;
@@ -371,12 +372,14 @@ namespace Auth.Api.Services
             {
                 var role = await _roleManager.FindByIdAsync(roleId);
                 var result = await _roleManager.GetClaimsAsync(role);
+                var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
-                return result.Select(s => new ClaimModel
-                {
-                    ClaimType = s.Type,
-                    ClaimValue = s.Value
-                }).ToList();
+                return result.Join(permissions, claims => claims.Type.ToLower(), permission => permission.Id.ToLower(), (claims, permission) => new { Claims = claims, Permission = permission })
+                        .Select(p => new ClaimModel
+                        {
+                            ClaimType = p.Permission.ClaimType,
+                            ClaimValue = p.Claims.Value
+                        }).ToList();
             }
             catch (Exception ex)
             {
@@ -1015,6 +1018,34 @@ namespace Auth.Api.Services
             }
 
             return users;
+        }
+        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
+        {
+            var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
+
+            var permList = result.Select(a => new PermissionModel()
+            {
+                Id = a.PermissionId.ToString(),
+                CategoryId = a.CategoryId,
+                CategoryName = a.CategoryName,
+                SubCategoryName = a.SubCategoryName,
+                GroupName = a.GroupName,
+                Name = a.Name,
+                ClaimType = a.ClaimType,
+                HasReadOnly = a.HasReadOnly,
+                SortOrder = a.SortOrder,
+                IsSubUser = a.IsSubUser
+            }).OrderBy(x => x.CategoryName).ThenBy(o => o.SortOrder).ToList();
+
+            return new BaseResponse<PermissionResponse>
+            {
+                StatusCode = StatusCode.Success,
+                Message = StatusCode.Success.ToString(),
+                Result = new PermissionResponse()
+                {
+                    Permissions = permList
+                }
+            };
         }
         #endregion
     }

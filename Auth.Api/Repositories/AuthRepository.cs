@@ -76,38 +76,52 @@ namespace Auth.Api.Repositories
 
             var userClaims = new List<ClaimModel>();
 
-
+            var permissions = new List<PermissionModel>();
             if (role.Name.ToLower() == "super admin")
             {
-                var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
+                permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
                 userClaims = permissions.Select(p => new ClaimModel
                 {
-                    ClaimType = p.ClaimType,
+                    ClaimType = p.Id,
                     ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
                 }).ToList();
             }
-            else if (isSubUser)
-                userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
-                    .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
             else
-                userClaims = _authContext.AspNetRoleClaims.Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId,
-                    (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
-                    .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
-                    .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
+            {
+                permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
+                if (isSubUser)
+                {
+                    userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
+                        .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
+                }
+                else
+                {
+                    userClaims = _authContext.AspNetRoleClaims
+                        .Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId, (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                        .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
+                        .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
+                }
+                if (userClaims.Any())
+                {
+                    permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
+                }
+            }
 
             foreach (var item in userClaims)
             {
-                if (item.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
+                var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
+                if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
                 {
                     token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
                 }
                 else
                 {
-                    token.Subject.AddClaim(new Claim(item.ClaimType.ToString(), item.ClaimValue.ToString()));
+                    token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
                 }
             }
 
+            token.Subject.AddClaim(new Claim("Permission", role.Id.ToString()));
             token.Subject.AddClaim(new Claim("RoleId", role.Id.ToString()));
             token.Subject.AddClaim(new Claim("RoleName", role.Name.ToString()));
 
@@ -115,7 +129,6 @@ namespace Auth.Api.Repositories
         }
         private async Task SaveToken(AppUser user, string token, LoginModel? loginModel = null)
         {
-
             if (loginModel == null)
                 loginModel = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
                 {
@@ -125,7 +138,11 @@ namespace Auth.Api.Repositories
 
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
+                var oldToken = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id);
+
+                if (oldToken.Any())
+                    _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
+
                 _authContext.AspNetUserTokens.Add(new AspNetUserTokens()
                 {
                     UserId = user.Id,
@@ -134,7 +151,7 @@ namespace Auth.Api.Repositories
                     Value = token
                 });
 
-                if(loginModel != null)
+                if (loginModel != null)
                 {
                     _authContext.ActivityLog.Add(new ActivityLog()
                     {
@@ -360,10 +377,11 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
         {
-            var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
+            var result = _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToList();
 
             var permList = result.Select(a => new PermissionModel()
             {
+                Id = a.PermissionId.ToString(),
                 CategoryId = a.CategoryId,
                 CategoryName = a.CategoryName,
                 SubCategoryName = a.SubCategoryName,
