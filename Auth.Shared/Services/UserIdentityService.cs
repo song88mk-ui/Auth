@@ -43,17 +43,19 @@ namespace Auth.Api.Services
         {
             try
             {
-                var result = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText)));
+                var accounts = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText))).ToList();
+
+                var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
                 var users = new List<AppUser>();
                 var metaData = new MetaData();
                 if (request.Page > 0 && request.PageSize > 0)
                 {
-                    var rowCount = result.Count();
+                    var rowCount = accounts.Count();
                     var skip = (request.Page - 1) * request.PageSize;
                     var totalPage = ((rowCount - 1) / request.PageSize) + 1;
 
-                    users = result.Skip(skip).Take(request.PageSize).ToList();
+                    users = accounts.Skip(skip).Take(request.PageSize).ToList();
 
                     metaData = new MetaData
                     {
@@ -73,8 +75,14 @@ namespace Auth.Api.Services
                         if (s != null)
                         {
                             var userClaim = await _userManager.GetClaimsAsync(s);
+                            var result = userClaim.Join(permissions, claims => claims.Type.ToLower(), permission => permission.Id.ToLower(), (claims, permission) => new { Claims = claims, Permission = permission })
+                                     .Select(p => new ClaimModel
+                                     {
+                                         ClaimType = p.Permission.ClaimType,
+                                         ClaimValue = p.Claims.Value
+                                     }).ToList();
 
-                            claimsModel = userClaim == null ? new List<ClaimModel>() : userClaim.Select(s => new ClaimModel { ClaimType = s.Type, ClaimValue = s.Value }).ToList();
+                            claimsModel = result == null ? new List<ClaimModel>() : result;
                         }
 
                         var userResponse = new UserResponse
