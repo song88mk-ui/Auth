@@ -3,19 +3,12 @@ using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
 using Auth.Shared.Models.Response;
+using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
-using System.Collections.Immutable;
-using System.Globalization;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Transactions;
-using System.Xml.Schema;
 
 namespace Auth.Api.Services
 {
@@ -25,16 +18,18 @@ namespace Auth.Api.Services
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly UserIdentityContext _userIdentityContext;
+        private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
         #endregion
 
         #region Ctor
-        public UserIdentityService(AuthContext authContext, UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext)
+        public UserIdentityService(AuthContext authContext, UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext, IMemCache memCache)
         {
             _authContext = authContext;
             _userManager = userManager;
             _roleManager = roleManager;
             _userIdentityContext = userIdentityContext;
+            _memCache = memCache;
         }
         #endregion
 
@@ -970,30 +965,39 @@ namespace Auth.Api.Services
 
         public async Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request)
         {
+            var mKey = $"rru:{request.RoleId}:{request.ClaimType}";
+
+            var mCache = _memCache.GetCache<BaseResponse<ReportRolesUrlResponse>>(mKey);
+
+            if (mCache != null)
+                return mCache;
+
             try
             {
+                var response = new BaseResponse<ReportRolesUrlResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new ReportRolesUrlResponse
+                    {
+                        RoleId = request.RoleId,
+                        ClaimType = request.ClaimType
+                    }
+                };
+
                 var result = _authContext.ReportRoles.FirstOrDefault(r => r.RoleId == request.RoleId && r.ClaimType == request.ClaimType);
 
                 var role = await _roleManager.FindByIdAsync(request.RoleId);
 
-                var response = new ReportRolesUrlResponse
-                {
-                    RoleId = request.RoleId,
-                    ClaimType = request.ClaimType
-                };
-
                 if (result != null && role != null)
                 {
-                    response.RoleName = role.Name;
-                    response.Url = result.Url;
+                    response.Result.RoleName = role.Name;
+                    response.Result.Url = result.Url;
+
+                    _memCache.AddOrUpdateCache(mKey, response, DateTimeOffset.UtcNow.AddHours(24));
                 }
 
-                return new BaseResponse<ReportRolesUrlResponse>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = response
-                };
+                return response;
             }
             catch (Exception ex)
             {
@@ -1003,7 +1007,6 @@ namespace Auth.Api.Services
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
                 };
             }
-
         }
 
         public void Dispose()
@@ -1011,8 +1014,11 @@ namespace Auth.Api.Services
             _roleManager.Dispose();
             _userManager.Dispose();
         }
+
         #endregion
+
         #region Utilities
+
         private List<AppUser> GetUserList(string selection, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
         {
             var users = new List<AppUser>();
