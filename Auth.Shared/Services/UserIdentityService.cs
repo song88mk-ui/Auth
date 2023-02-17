@@ -967,6 +967,45 @@ namespace Auth.Api.Services
                 };
             }
         }
+
+        public async Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request)
+        {
+            try
+            {
+                var result = _authContext.ReportRoles.FirstOrDefault(r => r.RoleId == request.RoleId && r.ClaimType == request.ClaimType);
+
+                var role = await _roleManager.FindByIdAsync(request.RoleId);
+
+                var response = new ReportRolesUrlResponse
+                {
+                    RoleId = request.RoleId,
+                    ClaimType = request.ClaimType
+                };
+
+                if (result != null && role != null)
+                {
+                    response.RoleName = role.Name;
+                    response.Url = result.Url;
+                }
+
+                return new BaseResponse<ReportRolesUrlResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = response
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<ReportRolesUrlResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
+            }
+
+        }
+
         public void Dispose()
         {
             _roleManager.Dispose();
