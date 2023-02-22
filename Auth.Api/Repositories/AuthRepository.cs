@@ -5,52 +5,57 @@ using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Response;
 using Auth.Shared.Utilities;
-using Azure.Core;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
-using Microsoft.AspNetCore.Mvc.Routing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Validations;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.IdentityModel.Tokens.Jwt;
-using System.Net;
-using System.Reflection.Metadata;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using System.Transactions;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Auth.Api.Repositories
 {
     public class AuthRepository : IAuthRepository
     {
+        #region Properties
+
         private IConfiguration _configuration { get; set; }
         private IUserIdentityService _userIdentityService { get; set; }
         private AuthContext _authContext { get; set; }
+
+        #endregion
+
+        #region Fields
+
         private UserManager<AppUser> _userManager;
         private readonly byte[] TokenKey;
         private readonly string Issuer;
+        private readonly IMemCache _memCache;
+
+        #endregion
+
+        #region CTOR
 
         public AuthRepository(AuthContext authContext,
             UserManager<AppUser> userManager,
             IConfiguration config,
-            IUserIdentityService userIdentityService)
+            IUserIdentityService userIdentityService,
+            IMemCache memCache)
         {
             _authContext = authContext;
             _userManager = userManager;
             _configuration = config;
             _userIdentityService = userIdentityService;
+            _memCache = memCache;
 
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
+            _memCache = memCache;
         }
+
+        #endregion
+
+        #region Methods
+
         private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId)
         {
 
@@ -463,5 +468,7 @@ namespace Auth.Api.Repositories
                 };
             }
         }
+
+        #endregion
     }
 }

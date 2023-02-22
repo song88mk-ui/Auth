@@ -5,6 +5,7 @@ using Auth.Api.Services;
 using Auth.Shared.Data.Auth;
 using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Models;
+using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ builder.Services.AddScoped<ApiKeyFilter>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IUserIdentityService, UserIdentityService>();
 builder.Services.AddControllers().AddNewtonsoftJson(options => options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
+builder.Services.AddSingleton<IMemCache, MemCache>();
 
 builder.Services.AddCors(options =>
 {
