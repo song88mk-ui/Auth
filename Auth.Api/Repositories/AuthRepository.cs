@@ -58,7 +58,7 @@ namespace Auth.Api.Repositories
             {
                 Subject = new ClaimsIdentity(),
                 TokenType = "bearer",
-                Expires = DateTime.UtcNow.AddMinutes(10),
+                Expires = DateTime.UtcNow.AddMonths(3),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = Issuer
             };
@@ -148,7 +148,8 @@ namespace Auth.Api.Repositories
                     UserId = user.Id,
                     LoginProvider = loginModel.Provider,
                     Name = loginModel.Name,
-                    Value = token
+                    Value = token,
+                    OperatorToken = Guid.NewGuid().ToString()
                 });
 
                 if (loginModel != null)
