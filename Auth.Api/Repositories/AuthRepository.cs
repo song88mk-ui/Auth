@@ -29,7 +29,6 @@ namespace Auth.Api.Repositories
         private UserManager<AppUser> _userManager;
         private readonly byte[] TokenKey;
         private readonly string Issuer;
-        private readonly IMemCache _memCache;
 
         #endregion
 
@@ -38,18 +37,15 @@ namespace Auth.Api.Repositories
         public AuthRepository(AuthContext authContext,
             UserManager<AppUser> userManager,
             IConfiguration config,
-            IUserIdentityService userIdentityService,
-            IMemCache memCache)
+            IUserIdentityService userIdentityService)
         {
             _authContext = authContext;
             _userManager = userManager;
             _configuration = config;
             _userIdentityService = userIdentityService;
-            _memCache = memCache;
 
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
-            _memCache = memCache;
         }
 
         #endregion
