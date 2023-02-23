@@ -6,11 +6,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
 {
     [Route("api/[controller]")]
+    [AllowAnonymous]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class AuthController : ControllerBase
     {
@@ -44,8 +46,8 @@ namespace Auth.Api.Controllers
         }
 
         [HttpGet]
-        [Route("/authenticate")]
-        public async Task<IActionResult> Authenticate()
+        [Route("/authenticate/access")]
+        public async Task<IActionResult> AuthenticateAccess()
         {
             try
             {
@@ -58,6 +60,40 @@ namespace Auth.Api.Controllers
                 {
                     var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
                     result = await this._authRepository.Authenticate(token);
+                }
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+        [HttpGet]
+        [Route("/authenticate/operator")]
+        public async Task<IActionResult> AuthenticateToken()
+        {
+            try
+            {
+                var result = new BaseResponse<int>()
+                {
+                    StatusCode = AuthStatusCode.Unauthorized,
+                    Message = "Missing authorization",
+                    Result = 1003
+                };
+
+                var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
+                if (token != null)
+                {
+                    result = await this._authRepository.AuthenticateOperator(token);
                 }
 
                 switch (result.StatusCode)

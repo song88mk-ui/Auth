@@ -12,6 +12,6 @@ namespace Auth.Shared.Data.Auth.Entities
         public string LoginProvider { get; set; }
         public string Name { get; set; }
         public string Value { get; set; }
-        public string OperatorToken { get; set; }
+        public string? OperatorToken { get; set; }
     }
 }

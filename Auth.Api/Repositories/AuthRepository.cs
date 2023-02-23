@@ -5,7 +5,11 @@ using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Response;
 using Auth.Shared.Utilities;
+using Azure;
+using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -20,6 +24,7 @@ namespace Auth.Api.Repositories
 
         private IConfiguration _configuration { get; set; }
         private IUserIdentityService _userIdentityService { get; set; }
+        private readonly IMemCache _cacheAccess;
         private AuthContext _authContext { get; set; }
 
         #endregion
@@ -37,7 +42,8 @@ namespace Auth.Api.Repositories
         public AuthRepository(AuthContext authContext,
             UserManager<AppUser> userManager,
             IConfiguration config,
-            IUserIdentityService userIdentityService)
+            IUserIdentityService userIdentityService,
+            IMemCache cache)
         {
             _authContext = authContext;
             _userManager = userManager;
@@ -46,6 +52,7 @@ namespace Auth.Api.Repositories
 
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
+            _cacheAccess = cache;
         }
 
         #endregion
@@ -128,7 +135,7 @@ namespace Auth.Api.Repositories
 
             return token;
         }
-        private async Task SaveToken(AppUser user, string token, LoginModel? loginModel = null)
+        private async Task SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
             if (loginModel == null)
                 loginModel = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
@@ -150,7 +157,7 @@ namespace Auth.Api.Repositories
                     LoginProvider = loginModel.Provider,
                     Name = loginModel.Name,
                     Value = token,
-                    OperatorToken = Guid.NewGuid().ToString()
+                    OperatorToken = operatorToken
                 });
 
                 if (loginModel != null)
@@ -170,9 +177,14 @@ namespace Auth.Api.Repositories
 
                 _authContext.SaveChanges();
                 scope.Complete();
+                var tokenModel = new TokenModel()
+                {
+                    OperatorToken = operatorToken,
+                    AccessToken = token
+                };
+                _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
             }
         }
-
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
         {
@@ -212,7 +224,8 @@ namespace Auth.Api.Repositories
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
-                    SaveToken(user, accessToken, content);
+                    var operatorToken = Guid.NewGuid().ToString();
+                    await SaveToken(user, accessToken, operatorToken, content);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -220,6 +233,7 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
+                            OperatorToken = operatorToken,
                             AccessToken = accessToken
                         }
                     };
@@ -281,6 +295,11 @@ namespace Auth.Api.Repositories
             var user = await _userManager.FindByNameAsync(userEntity.UserName);
             _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == token && x.UserId == user.Id).FirstOrDefault());
             _authContext.SaveChangesAsync();
+            var operatorToken = _cacheAccess.GetCache<TokenModel>(user.Id);
+            if (operatorToken != null)
+            {
+                _cacheAccess.DeleteCache(user.Id);
+            }
 
             return new BaseResponse<bool>
             {
@@ -293,6 +312,7 @@ namespace Auth.Api.Repositories
         {
             try
             {
+                var operatorToken = Guid.NewGuid().ToString();
                 SecurityToken jwtToken = null;
 
                 if (string.IsNullOrWhiteSpace(token))
@@ -329,32 +349,31 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                //var tokenEntity = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
-                // Expired
-                if (jwtToken.ValidTo.AddMinutes(5) < DateTime.Now)
+                var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
+                var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+                var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
+                var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+
+                var user = _userManager.FindByNameAsync(name).Result;
+                if (user == null)
                 {
-                    var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
-                    var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-                    var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
-                    var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
-
-                    var user = _userManager.FindByNameAsync(name).Result;
-                    if (user == null)
+                    return new BaseResponse<TokenModel>
                     {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "Invalid Token.",
+                        Result = null
+                    };
+                }
 
-                    var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
-
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    token = tokenHandler.WriteToken(tokenHandler.CreateToken(await GenerateToken(userId, role, provider, name, user.MainUserId)));
-
-                    SaveToken(user, token);
+                var cacheToken = _cacheAccess.GetCache<TokenModel>(userId.ToUpper());
+                if (cacheToken == null)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "Invalid Token.",
+                        Result = null
+                    };
                 }
 
                 return new BaseResponse<TokenModel>
@@ -363,6 +382,7 @@ namespace Auth.Api.Repositories
                     Message = StatusCode.Success.ToString(),
                     Result = new TokenModel()
                     {
+                        OperatorToken = cacheToken.OperatorToken,
                         AccessToken = token
                     }
                 };
@@ -374,6 +394,39 @@ namespace Auth.Api.Repositories
                     StatusCode = StatusCode.Error,
                     Message = ex.Message,
                     Result = null
+                };
+            }
+        }
+        public async Task<BaseResponse<int>> AuthenticateOperator(string token)
+        {
+            try
+            {
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+
+                if (userToken == null)
+                {
+                    return new BaseResponse<int>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = StatusCode.Unauthorized.ToString(),
+                        Result = 1000
+                    };
+                }
+
+                return new BaseResponse<int>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = 1002
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<int>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = ex.Message,
+                    Result = 1003
                 };
             }
         }
