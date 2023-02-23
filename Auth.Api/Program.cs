@@ -9,7 +9,9 @@ using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using System.Reflection;
 using System.Security.Principal;
 using System.Text.Json.Serialization;
 
@@ -41,7 +43,11 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddSwaggerGen(option =>
 {
-    option.SwaggerDoc("v1", new OpenApiInfo { Title = "Auth API", Version = "v1" });
+    option.SwaggerDoc("v1", new OpenApiInfo { 
+        Title = "Auth API",
+        Version = "v1",
+        Description = "Authorization API for web apps"
+    });
     option.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
         Name = "x-api-key",
@@ -62,13 +68,17 @@ builder.Services.AddSwaggerGen(option =>
 
     var requirement = new OpenApiSecurityRequirement { { key, new List<string>() } };
     option.AddSecurityRequirement(requirement);
+
+    option.DocInclusionPredicate((docName, description) => true);
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    option.IncludeXmlComments(xmlPath);
 });
 builder.Services.AddControllers().AddJsonOptions(options =>
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -78,9 +88,18 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
     app.UseExceptionHandler("/error-development");
 }
-app.UseSwagger();
-app.UseSwaggerUI();
 
+app.UseSwagger();
+app.UseSwaggerUI(option =>
+{
+    option.SwaggerEndpoint("/swagger/v1/swagger.json", "Auth API V1");
+    option.DisplayRequestDuration();
+});
+app.UseReDoc(option =>
+{
+    option.DocumentTitle = "Swagger Demo Documentation";
+    option.SpecUrl = "/swagger/v1/swagger.json";
+});
 app.UseCors();
 app.UseAuthorization();
 app.UseHttpsRedirection();

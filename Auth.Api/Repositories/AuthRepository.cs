@@ -397,36 +397,36 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<BaseResponse<int>> AuthenticateOperator(string token)
+        public async Task<OperatorBaseResponse<object>> AuthenticateOperator(string token)
         {
             try
             {
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).Select(x  => new { x.UserId } ).FirstOrDefault();
 
                 if (userToken == null)
                 {
-                    return new BaseResponse<int>
+                    return new OperatorBaseResponse<object>
                     {
-                        StatusCode = StatusCode.Unauthorized,
+                        StatusCode = (int)StatusCode.Unauthorized,
                         Message = StatusCode.Unauthorized.ToString(),
-                        Result = 1000
+                        Result = null
                     };
                 }
 
-                return new BaseResponse<int>
+                return new OperatorBaseResponse<object>
                 {
-                    StatusCode = StatusCode.Success,
+                    StatusCode = (int)StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = 1002
+                    Result = userToken
                 };
             }
             catch (Exception ex)
             {
-                return new BaseResponse<int>
+                return new OperatorBaseResponse<object>
                 {
-                    StatusCode = StatusCode.Error,
+                    StatusCode = (int)StatusCode.Error,
                     Message = ex.Message,
-                    Result = 1003
+                    Result = null
                 };
             }
         }

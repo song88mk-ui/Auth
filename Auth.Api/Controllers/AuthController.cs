@@ -1,17 +1,15 @@
 ﻿using Auth.Api.ActionFilters;
 using Auth.Api.Repositories;
 using Auth.Shared.Models;
-using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using System.Security;
+using System.Net;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("")]
     [AllowAnonymous]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class AuthController : ControllerBase
@@ -21,7 +19,11 @@ namespace Auth.Api.Controllers
         {
             this._authRepository = authRepository;
         }
-
+        /// <summary>
+        /// Loging credential
+        /// </summary>
+        /// <param name="usersdata"></param>
+        /// <returns></returns>
         [HttpPost("/login")]
         public async Task<IActionResult> Login(LoginModel usersdata)
         {
@@ -45,8 +47,12 @@ namespace Auth.Api.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("/authenticate/access")]
+        /// <summary>
+        /// Authenticate JWT
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("v1/authentication/access")]
         public async Task<IActionResult> AuthenticateAccess()
         {
             try
@@ -77,17 +83,37 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-        [HttpGet]
-        [Route("/authenticate/operator")]
+
+        /// <summary>
+        /// Authenticate Operator Token
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <return></return>
+        /// <response code="200">Valid operator token
+        /// <para>Result = 1000 - Success</para></response>
+        /// <response code="400">Bad Request
+        /// <para>Result = 1001 - Bad Request</para></response>
+        /// <response code="401">Unauthorizeed operator token
+        /// <para>Result = 1001 - Bad Request</para></response>
+        /// <response code="500">Internal Server Error
+        /// <para>Result = 1002 - Internal Server Error</para></response>
+        [HttpPost]
+        [Route("v1/authentication/operator")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(BaseResponse<int>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(BaseResponse<int>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(BaseResponse<int>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> AuthenticateToken()
         {
             try
             {
-                var result = new BaseResponse<int>()
+                var result = new OperatorBaseResponse<object>()
                 {
-                    StatusCode = AuthStatusCode.Unauthorized,
+                    StatusCode = (int)AuthStatusCode.Unauthorized,
                     Message = "Missing authorization",
-                    Result = 1003
+                    Result = null
                 };
 
                 var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
@@ -98,9 +124,9 @@ namespace Auth.Api.Controllers
 
                 switch (result.StatusCode)
                 {
-                    case AuthStatusCode.Success:
+                    case (int)AuthStatusCode.Success:
                         return Ok(result);
-                    case AuthStatusCode.Unauthorized:
+                    case (int)AuthStatusCode.Unauthorized:
                         return Unauthorized(result);
                     default:
                         return BadRequest(result);
