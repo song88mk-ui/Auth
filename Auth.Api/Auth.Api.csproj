@@ -9,12 +9,12 @@
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<NoWarn>1701;1702;CS8618;CS8602;CS8604;CS4014;1591</NoWarn>
+		<NoWarn>1701;1702;CS8618;CS8602;CS8604;CS4014;1591;CS8618</NoWarn>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<NoWarn>1701;1702;CS8618;CS8602;CS8604;CS4014;1591</NoWarn>
+		<NoWarn>1701;1702;CS8618;CS8602;CS8604;CS4014;1591;CS8618</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

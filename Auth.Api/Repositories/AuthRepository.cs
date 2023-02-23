@@ -312,7 +312,6 @@ namespace Auth.Api.Repositories
         {
             try
             {
-                var operatorToken = Guid.NewGuid().ToString();
                 SecurityToken jwtToken = null;
 
                 if (string.IsNullOrWhiteSpace(token))
@@ -368,12 +367,24 @@ namespace Auth.Api.Repositories
                 var cacheToken = _cacheAccess.GetCache<TokenModel>(userId.ToUpper());
                 if (cacheToken == null)
                 {
-                    return new BaseResponse<TokenModel>
+                    var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+
+                    if (userToken == null)
                     {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Invalid Token.",
-                        Result = null
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Invalid Token.",
+                            Result = null
+                        };
+                    }
+
+                    var tokenModel = new TokenModel()
+                    {
+                        OperatorToken = userToken.OperatorToken ?? "",
+                        AccessToken = userToken.Value
                     };
+                    _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
                 }
 
                 return new BaseResponse<TokenModel>
@@ -401,7 +412,7 @@ namespace Auth.Api.Repositories
         {
             try
             {
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).Select(x  => new { x.UserId } ).FirstOrDefault();
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).Select(x => new { x.UserId }).FirstOrDefault();
 
                 if (userToken == null)
                 {

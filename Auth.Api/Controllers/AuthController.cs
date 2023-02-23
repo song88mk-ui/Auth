@@ -9,7 +9,7 @@ using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
 {
-    [Route("")]
+    [Route("v1")]
     [AllowAnonymous]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class AuthController : ControllerBase
@@ -24,7 +24,7 @@ namespace Auth.Api.Controllers
         /// </summary>
         /// <param name="usersdata"></param>
         /// <returns></returns>
-        [HttpPost("/login")]
+        [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel usersdata)
         {
             try
@@ -52,7 +52,7 @@ namespace Auth.Api.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        [Route("v1/authentication/access")]
+        [Route("authentication/access")]
         public async Task<IActionResult> AuthenticateAccess()
         {
             try
@@ -99,7 +99,7 @@ namespace Auth.Api.Controllers
         /// <response code="500">Internal Server Error
         /// <para>Result = 1002 - Internal Server Error</para></response>
         [HttpPost]
-        [Route("v1/authentication/operator")]
+        [Route("authentication/operator")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(BaseResponse<int>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(BaseResponse<int>), StatusCodes.Status400BadRequest)]
@@ -139,7 +139,7 @@ namespace Auth.Api.Controllers
         }
 
         [HttpGet]
-        [Route("/logout")]
+        [Route("logout")]
         public async Task<IActionResult> Logout()
         {
             try

@@ -14,7 +14,7 @@ using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 namespace Auth.Api.Controllers
 {
     [Authorize]
-    [Route("api/[controller]")]
+    [Route("v1/api/[controller]")]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class UserController : ControllerBase
     {
