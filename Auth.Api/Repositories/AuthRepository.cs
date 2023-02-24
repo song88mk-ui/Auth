@@ -59,7 +59,7 @@ namespace Auth.Api.Repositories
 
         #region Methods
 
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, long userIdRef = 0l)
         {
 
             var token = new SecurityTokenDescriptor
@@ -71,7 +71,7 @@ namespace Auth.Api.Repositories
                 Issuer = Issuer
             };
             token.Subject.AddClaim(new Claim("UserId", userId));
-
+            token.Subject.AddClaim(new Claim("UserIdRef", userIdRef.ToString()));
             token.Subject.AddClaim(new Claim("Provider", provider));
             token.Subject.AddClaim(new Claim("TokenName", name));
             token.Subject.AddClaim(new Claim("MainUserId", mainUserId));
@@ -220,7 +220,7 @@ namespace Auth.Api.Repositories
 
                     var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId);
+                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
