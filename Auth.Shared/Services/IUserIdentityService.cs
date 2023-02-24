@@ -31,5 +31,6 @@ namespace Auth.Api.Services
         Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
         Task<BaseResponse<bool>> ChangePassword(AppUser user, string currentPassword, string newPassword);
         Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request);
+        Task<BaseResponse<UsersOnlineResponse>> GetUsersOnline();
     }
 }
