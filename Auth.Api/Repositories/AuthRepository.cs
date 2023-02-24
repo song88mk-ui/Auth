@@ -220,7 +220,7 @@ namespace Auth.Api.Repositories
 
                     var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef);
+                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef ?? 0);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
@@ -385,6 +385,7 @@ namespace Auth.Api.Repositories
                         AccessToken = userToken.Value
                     };
                     _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                    cacheToken = tokenModel;
                 }
 
                 return new BaseResponse<TokenModel>
