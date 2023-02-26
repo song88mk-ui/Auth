@@ -4,6 +4,7 @@ using Auth.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
 using System.Net;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
@@ -127,6 +128,40 @@ namespace Auth.Api.Controllers
                     case (int)AuthStatusCode.Success:
                         return Ok(result);
                     case (int)AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Authenticate JWT
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("authentication/security")]
+        public async Task<IActionResult> AuthenticateSecurityCode([FromBody] AuthenticateSecurityCodeRequest request)
+        {
+            try
+            {
+                var result = new BaseResponse<TokenModel>()
+                {
+                    StatusCode = AuthStatusCode.Unauthorized,
+                    Message = "Missing authorization"
+                };
+
+                result = await _authRepository.AuthenticateSecurityCode(request);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
                         return Unauthorized(result);
                     default:
                         return BadRequest(result);

@@ -9,6 +9,7 @@ using Azure;
 using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -437,6 +438,68 @@ namespace Auth.Api.Repositories
                 return new OperatorBaseResponse<object>
                 {
                     StatusCode = (int)StatusCode.Error,
+                    Message = ex.Message,
+                    Result = null
+                };
+            }
+        }
+        public async Task<BaseResponse<TokenModel>> AuthenticateSecurityCode(AuthenticateSecurityCodeRequest request)
+        {
+            try
+            {
+
+                var user = await _userManager.Users.FirstOrDefaultAsync(u => u.IdRef == request.IdRef);
+
+                if (user == null)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "User does not exist.",
+                        Result = null
+                    };
+                }
+
+                if (user.LockoutEnd != null)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "User is locked.",
+                        Result = null
+                    };
+                }
+
+                //TODO: verify security code
+
+                var accessToken = "";
+
+                var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
+
+                var token = GenerateToken(user.Id, role, Application.AgentManagementSystem.ToString(), user.UserName, user.MainUserId, user.IdRef ?? 0);
+                var tokenHandler = new JwtSecurityTokenHandler();
+                accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
+
+                var operatorToken = Guid.NewGuid().ToString();
+                await SaveToken(user, accessToken, operatorToken, null);
+
+                return new BaseResponse<TokenModel>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new TokenModel()
+                    {
+                        OperatorToken = operatorToken,
+                        AccessToken = accessToken
+                    }
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<TokenModel>
+                {
+                    StatusCode = StatusCode.Error,
                     Message = ex.Message,
                     Result = null
                 };
