@@ -912,7 +912,7 @@ namespace Auth.Api.Services
                     Result = user == null ? new UserResponse() : new UserResponse
                     {
                         UserId = user.Id,
-                        UserIdRef = user.IdRef,
+                        UserIdRef = user.IdRef ?? 0l,
                         NickName = user.NickName,
                         UserName = user.UserName,
                         Email = user.Email,
