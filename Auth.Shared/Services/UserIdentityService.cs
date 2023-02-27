@@ -83,6 +83,7 @@ namespace Auth.Api.Services
                         var userResponse = new UserResponse
                         {
                             UserId = s.Id,
+                            UserIdRef = s.IdRef ?? 0l,
                             NickName = s.NickName,
                             UserName = s.UserName,
                             Email = s.Email,
@@ -276,6 +277,7 @@ namespace Auth.Api.Services
                                (users, userGroups) => new UserResponse()
                                {
                                    UserId = users.Id,
+                                   UserIdRef = users.IdRef ?? 0l,
                                    NickName = users.NickName,
                                    UserName = users.UserName,
                                    Password = users.PasswordHash,
