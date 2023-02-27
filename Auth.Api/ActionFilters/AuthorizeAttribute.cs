@@ -4,6 +4,7 @@ using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
+using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -19,7 +20,7 @@ namespace Auth.Api.ActionFilters
         {
             if (!context.HttpContext.Request.Headers.ContainsKey("Authorization"))
             {
-                context.Result = new JsonResult(new { title = "Unauthorized", message = "Missing Authorization" }) { StatusCode = StatusCodes.Status401Unauthorized };
+                context.Result = new JsonResult(new { StatusCode = HttpStatusCode.Unauthorized, message = "Missing Authorization" }) { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
             }
 
@@ -30,7 +31,7 @@ namespace Auth.Api.ActionFilters
 
             if (validToken.Result?.AccessToken == null)
             {
-                context.Result = new JsonResult(new { Title = "Unauthorized", Message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
+                context.Result = new JsonResult(new { StatusCode = HttpStatusCode.Unauthorized, Message = validToken.Message }) { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
             }
         }
