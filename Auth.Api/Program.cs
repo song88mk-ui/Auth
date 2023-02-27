@@ -95,11 +95,11 @@ app.UseSwaggerUI(option =>
     option.SwaggerEndpoint("/swagger/v1/swagger.json", "Auth API V1");
     option.DisplayRequestDuration();
 });
-app.UseReDoc(option =>
-{
-    option.DocumentTitle = "Swagger Demo Documentation";
-    option.SpecUrl = "/swagger/v1/swagger.json";
-});
+//app.UseReDoc(option =>
+//{
+//    option.DocumentTitle = "Swagger Demo Documentation";
+//    option.SpecUrl = "/swagger/v1/swagger.json";
+//});
 app.UseCors();
 app.UseAuthorization();
 app.UseHttpsRedirection();

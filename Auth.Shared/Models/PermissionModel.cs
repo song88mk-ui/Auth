@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Auth.Shared.Models
+﻿namespace Auth.Shared.Models
 {
     public class PermissionModel
     {
@@ -18,5 +12,6 @@ namespace Auth.Shared.Models
         public bool HasReadOnly { get; set; }
         public int SortOrder { get; set; }
         public bool IsSubUser { get; set; }
+        public int UserGroupTemplateIdRef { get; set; }
     }
 }

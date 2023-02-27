@@ -1,14 +1,10 @@
 ﻿using Auth.Api.ActionFilters;
 using Auth.Api.Repositories;
 using Auth.Api.Services;
-using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
-using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
-using System.IdentityModel.Tokens.Jwt;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers

@@ -520,7 +520,8 @@ namespace Auth.Api.Repositories
                 ClaimType = a.ClaimType,
                 HasReadOnly = a.HasReadOnly,
                 SortOrder = a.SortOrder,
-                IsSubUser = a.IsSubUser
+                IsSubUser = a.IsSubUser,
+                UserGroupTemplateIdRef = a.UserGroupTemplateIdRef
             }).OrderBy(x => x.CategoryName).ThenBy(o => o.SortOrder).ToList();
 
             return new BaseResponse<PermissionResponse>
