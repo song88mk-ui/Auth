@@ -92,9 +92,13 @@ namespace Auth.Api.Repositories
 
                 userClaims = permissions.Select(p => new ClaimModel
                 {
-                    ClaimType = p.ClaimType,
+                    ClaimType = p.Id,
                     ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
                 }).ToList();
+                if (userClaims.Any())
+                {
+                    permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
+                }
             }
             else
             {
