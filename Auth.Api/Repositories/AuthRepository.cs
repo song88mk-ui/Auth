@@ -92,7 +92,7 @@ namespace Auth.Api.Repositories
 
                 userClaims = permissions.Select(p => new ClaimModel
                 {
-                    ClaimType = p.Id,
+                    ClaimType = p.ClaimType,
                     ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
                 }).ToList();
             }
