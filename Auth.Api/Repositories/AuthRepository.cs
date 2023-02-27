@@ -205,6 +205,16 @@ namespace Auth.Api.Repositories
                     };
                 }
 
+                if(user.AppId.ToString() != content.Provider)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "User does not exist.",
+                        Result = null
+                    };
+                }
+
                 if (user.LockoutEnd != null)
                 {
                     return new BaseResponse<TokenModel>

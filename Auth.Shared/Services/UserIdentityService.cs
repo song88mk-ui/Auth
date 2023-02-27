@@ -410,14 +410,37 @@ namespace Auth.Api.Services
 
         }
 
-        public async Task<BaseResponse<bool>> AddAspNetUsers(UserRegisterRequest request)
+        public async Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request)
         {
             try
             {
+                var idRef = $"{((int)Application.AgentManagementSystem).ToString("00")}{DateTime.UtcNow.ToString("yyMMdd")}";
+                var suffix = _userManager.Users.Where(x => x.IdRef.ToString().StartsWith(idRef)).OrderByDescending(x => x.IdRef).Select(x => x.IdRef).FirstOrDefault();
+                var count = 0;
+
+                if (suffix != null)
+                {
+                    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 2), out count);
+                }
+                count++;
+                idRef += count.ToString("00");
+
+                if (suffix != null)
+                {
+                    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 3), out count);
+                }
+
+                idRef += count.ToString("00");
+
+                var newIdRef = 0l;
+
+                long.TryParse(idRef, out newIdRef);
+
                 var user = new AppUser
                 {
                     UserName = request.UserName,
                     Email = request.Email,
+                    IdRef = newIdRef,
                     EmailConfirmed = true,
                     CreatedDate = DateTime.UtcNow,
                     MainUserId = request.MainUserId,
@@ -447,11 +470,11 @@ namespace Auth.Api.Services
                             }
                         }
 
-                    return new BaseResponse<bool>
+                    return new BaseResponse<long>
                     {
                         StatusCode = StatusCode.Success,
                         Message = StatusCode.Success.ToString(),
-                        Result = true
+                        Result = 0l
                     };
                 }
                 else
@@ -460,7 +483,7 @@ namespace Auth.Api.Services
                     foreach (IdentityError error in result.Errors)
                         errorMsg += error.Description.ToString() + ",";
 
-                    return new BaseResponse<bool>
+                    return new BaseResponse<long>
                     {
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')} "
@@ -469,7 +492,7 @@ namespace Auth.Api.Services
             }
             catch (Exception ex)
             {
-                return new BaseResponse<bool>
+                return new BaseResponse<long>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"

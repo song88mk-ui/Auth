@@ -9,7 +9,7 @@ namespace Auth.Api.Services
 {
     public interface IUserIdentityService
     {
-        Task<BaseResponse<bool>> AddAspNetUsers(UserRegisterRequest request);
+        Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request);
         Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false);
         Task<BaseResponse<bool>> UpdateAspNetUserRole(UserRegisterRequest request);
         Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request);
