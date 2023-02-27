@@ -69,7 +69,8 @@ namespace Auth.Api.Repositories
                 TokenType = "bearer",
                 Expires = DateTime.UtcNow.AddMonths(3),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
-                Issuer = Issuer
+                Issuer = Issuer,
+                Audience = Issuer
             };
             token.Subject.AddClaim(new Claim("UserId", userId));
             token.Subject.AddClaim(new Claim("UserIdRef", userIdRef.ToString()));
