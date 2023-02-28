@@ -456,7 +456,8 @@ namespace Auth.Api.Services
                     user.LockoutEnd = DateTime.UtcNow;
 
                 //var isvalid = await _userManager.UserValidators(request);
-                IdentityResult result = await _userManager.CreateAsync(user, request.Password);
+                user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
+                IdentityResult result = await _userManager.CreateAsync(user);
                 if (result.Succeeded)
                 {
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
