@@ -1043,8 +1043,6 @@ namespace Auth.Api.Services
                 var roleName = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
                 var role = await _roleManager.FindByNameAsync(roleName);
 
-                var claims = await GetAspNetRoleClaims(role.Id);
-
                 return new BaseResponse<UserResponse>
                 {
                     StatusCode = StatusCode.Success,
@@ -1061,7 +1059,10 @@ namespace Auth.Api.Services
                         AppName = user.AppName,
                         MainUserId = user.MainUserId,
                         Status = user.LockoutEnd != null ? "Locked" : "Normal",
-                        Claims = claims
+                        RoleId = role.Id,
+                        RoleName = role.Name,
+                        UserGroupIdRef = role.UserGroupIdRef,
+                        Claims = new List<ClaimModel>()
                     }
                 };
             }
