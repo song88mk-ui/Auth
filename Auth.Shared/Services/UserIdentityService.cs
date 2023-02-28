@@ -477,7 +477,7 @@ namespace Auth.Api.Services
                     {
                         StatusCode = StatusCode.Success,
                         Message = StatusCode.Success.ToString(),
-                        Result = 0l
+                        Result = newIdRef
                     };
                 }
                 else
