@@ -198,6 +198,7 @@ namespace Auth.Api.Services
                     result.UserGroups.Add(new UserGroupResponse
                     {
                         UserGroupId = role.Id,
+                        UserGroupIdRef = role.UserGroupIdRef,
                         UserGroupName = role.Name,
                         Claims = claims ?? new List<ClaimModel>()
                     });
