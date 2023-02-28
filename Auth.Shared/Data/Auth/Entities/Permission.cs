@@ -13,5 +13,6 @@
         public int SortOrder { get; set; }
         public bool IsSubUser { get; set; }
         public int UserGroupTemplateIdRef { get; set; }
+        public int Version { get; set; }
     }
 }

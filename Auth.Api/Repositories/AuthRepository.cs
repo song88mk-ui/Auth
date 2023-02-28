@@ -89,7 +89,7 @@ namespace Auth.Api.Repositories
             var permissions = new List<PermissionModel>();
             if (role.Name.ToLower() == "super admin")
             {
-                permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
+                permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
 
                 userClaims = permissions.Select(p => new ClaimModel
                 {
@@ -103,7 +103,7 @@ namespace Auth.Api.Repositories
             }
             else
             {
-                permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
+                permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
                 if (isSubUser)
                 {
                     userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
@@ -520,24 +520,36 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
+        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly, int version)
         {
-            var result = _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToList();
+            var query = _authContext.Permission.Where(c => isSubUserOnly == false || c.IsSubUser == isSubUserOnly);
 
-            var permList = result.Select(a => new PermissionModel()
+            // 0 = all backoffice version
+            // 1 = backoffice version 1
+            // 2 = backoffice version 2
+            if (version > 0)
             {
-                Id = a.PermissionId.ToString(),
-                CategoryId = a.CategoryId,
-                CategoryName = a.CategoryName,
-                SubCategoryName = a.SubCategoryName,
-                GroupName = a.GroupName,
-                Name = a.Name,
-                ClaimType = a.ClaimType,
-                HasReadOnly = a.HasReadOnly,
-                SortOrder = a.SortOrder,
-                IsSubUser = a.IsSubUser,
-                UserGroupTemplateIdRef = a.UserGroupTemplateIdRef
-            }).OrderBy(x => x.CategoryName).ThenBy(o => o.SortOrder).ToList();
+                var versions = new int[] { 0, 1 };
+                query = query.Where(c => versions.Contains(c.Version));
+            }
+
+            var result = query.ToList();
+
+            var permList = result.Select(s => new PermissionModel()
+            {
+                Id = s.PermissionId.ToString(),
+                CategoryId = s.CategoryId,
+                CategoryName = s.CategoryName,
+                SubCategoryName = s.SubCategoryName,
+                GroupName = s.GroupName,
+                Name = s.Name,
+                ClaimType = s.ClaimType,
+                HasReadOnly = s.HasReadOnly,
+                SortOrder = s.SortOrder,
+                IsSubUser = s.IsSubUser,
+                UserGroupTemplateIdRef = s.UserGroupTemplateIdRef,
+                Version = s.Version
+            }).OrderBy(o => o.CategoryName).ThenBy(o => o.SortOrder).ToList();
 
             return new BaseResponse<PermissionResponse>
             {

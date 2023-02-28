@@ -137,11 +137,11 @@ namespace Auth.Api.Controllers
         }
 
         [HttpGet("permission/list")]
-        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly)
+        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly, int version = 0)
         {
             try
             {
-                var result = await _authRepository.GetPermissionList(isSubUserOnly);
+                var result = await _authRepository.GetPermissionList(isSubUserOnly, version);
 
                 switch (result.StatusCode)
                 {
