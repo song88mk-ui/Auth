@@ -1,4 +1,5 @@
 ﻿using Auth.Shared.Data.Auth;
+using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
@@ -973,7 +974,20 @@ namespace Auth.Api.Services
         {
             try
             {
-                var user = await _userManager.FindByIdAsync(userId);
+                var idRef = 0l;
+
+                long.TryParse(userId, out idRef);
+
+                var user = new AppUser();
+                if (idRef != 0)
+                {
+                    var appUser = _authContext.AspNetUsers.Where(x => x.IdRef == idRef).FirstOrDefault();
+
+                    userId = appUser == null ? userId : appUser.Id;
+                }
+
+                user = await _userManager.FindByIdAsync(userId);
+
                 var claimsModel = new List<ClaimModel>();
                 if (user != null)
                 {
@@ -989,7 +1003,7 @@ namespace Auth.Api.Services
                     {
                         UserId = user.Id,
                         UserIdRef = user.IdRef ?? 0l,
-                        NickName = user.NickName,
+                        NickName = user.NickName ?? "",
                         UserName = user.UserName,
                         Email = user.Email,
                         CreatedDate = user.CreatedDate,
@@ -1088,7 +1102,7 @@ namespace Auth.Api.Services
 
         public async Task<BaseResponse<UsersOnlineResponse>> GetUsersOnline()
         {
-            
+
             try
             {
                 var response = new BaseResponse<UsersOnlineResponse>
