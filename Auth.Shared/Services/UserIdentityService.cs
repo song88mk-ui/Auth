@@ -1010,6 +1010,71 @@ namespace Auth.Api.Services
                 };
             }
         }
+
+        public async Task<BaseResponse<UserResponse>> GetUser(string id)
+        {
+            try
+            {
+                long.TryParse(id, out long idRef);
+
+                var query = _userManager.Users;
+
+                if (idRef > 0)
+                {
+                    query = query.Where(c => c.IdRef == idRef);
+                }
+                else
+                {
+                    query = query.Where(c => c.Id == id);
+                }
+
+                var user = await query.FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return new BaseResponse<UserResponse>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new UserResponse()
+                    };
+                }
+
+                var roleName = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
+                var role = await _roleManager.FindByNameAsync(roleName);
+
+                var claims = await GetAspNetRoleClaims(role.Id);
+
+                return new BaseResponse<UserResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new UserResponse
+                    {
+                        UserId = user.Id,
+                        UserIdRef = user.IdRef ?? 0l,
+                        NickName = user.NickName,
+                        UserName = user.UserName,
+                        Email = user.Email,
+                        CreatedDate = user.CreatedDate,
+                        AppId = user.AppId,
+                        AppName = user.AppName,
+                        MainUserId = user.MainUserId,
+                        Status = user.LockoutEnd != null ? "Locked" : "Normal",
+                        Claims = claims
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<UserResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
+            }
+        }
+
         public async Task<BaseResponse<bool>> ChangePassword(AppUser user, string currentPassword, string newPassword)
         {
             try
