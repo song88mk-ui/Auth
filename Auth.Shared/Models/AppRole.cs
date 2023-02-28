@@ -1,14 +1,19 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Auth.Shared.Models
 {
     public class AppRole : IdentityRole
     {
-        public int UserCount { get; set; }
+        public AppRole()
+        {
+
+        }
+
+        public AppRole(string roleName) : base(roleName)
+        {
+            Name = roleName;
+        }
+
+        public int UserGroupIdRef { get; set; }
     }
 }

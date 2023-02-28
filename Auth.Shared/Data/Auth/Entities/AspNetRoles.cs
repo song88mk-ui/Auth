@@ -10,5 +10,6 @@ namespace Auth.Shared.Data.Auth.Entities
         public string Name { get; set; }
         public string NormalizedName { get; set; }
         public string ConcurrencyStamp { get; set; }
+        public int UserGroupIdRef { get; set; }
     }
 }

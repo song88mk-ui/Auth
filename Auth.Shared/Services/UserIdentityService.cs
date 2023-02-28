@@ -16,14 +16,14 @@ namespace Auth.Api.Services
     {
         #region Fields
         private readonly UserManager<AppUser> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly RoleManager<AppRole> _roleManager;
         private readonly UserIdentityContext _userIdentityContext;
         private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
         #endregion
 
         #region Ctor
-        public UserIdentityService(AuthContext authContext, UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, UserIdentityContext userIdentityContext, IMemCache memCache)
+        public UserIdentityService(AuthContext authContext, UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, UserIdentityContext userIdentityContext, IMemCache memCache)
         {
             _authContext = authContext;
             _userManager = userManager;
@@ -120,6 +120,53 @@ namespace Auth.Api.Services
                 };
             }
 
+        }
+        public async Task<BaseResponse<UserGroupResponse>> GetAspNetRoles(string roleId, int userGroupIdRef)
+        {
+            try
+            {
+                var query = _roleManager.Roles.AsNoTracking();
+
+                if (!string.IsNullOrEmpty(roleId))
+                {
+                    query = query.Where(c => c.Id == roleId);
+                }
+                else if (userGroupIdRef > 0)
+                {
+                    query = query.Where(c => c.UserGroupIdRef == userGroupIdRef);
+                }
+
+                var userGroup = new UserGroupResponse();
+
+                if (!string.IsNullOrEmpty(roleId) || userGroupIdRef > 0)
+                {
+                    var role = query.FirstOrDefault();
+                    var claims = await GetAspNetRoleClaims(role.Id);
+
+                    userGroup = new UserGroupResponse
+                    {
+                        UserGroupId = role.Id,
+                        UserGroupName = role.Name,
+                        Claims = claims ?? new List<ClaimModel>()
+                    };
+                }
+
+                return new BaseResponse<UserGroupResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = userGroup
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<UserGroupResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})",
+                    Result = new UserGroupResponse()
+                };
+            }
         }
         public async Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request)
         {
@@ -233,7 +280,7 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<AppRole> GetAspNetUsersRole(AppUser request)
+        public async Task<RoleModel> GetAspNetUsersRole(AppUser request)
         {
             try
             {
@@ -242,14 +289,14 @@ namespace Auth.Api.Services
 
                 if (role != null)
                 {
-                    return new AppRole
+                    return new RoleModel
                     {
                         Id = role.Id,
                         Name = role.Name
                     };
                 }
 
-                return new AppRole();
+                return new RoleModel();
             }
             catch (Exception ex)
             {
@@ -343,16 +390,16 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<List<AppRole>> GetAspNetRole()
+        public async Task<List<RoleModel>> GetAspNetRole()
         {
             try
             {
-                var appRoleList = new List<AppRole>();
+                var appRoleList = new List<RoleModel>();
                 var result = _roleManager.Roles.Select(x => new { x.Id, x.Name, x.NormalizedName, x.ConcurrencyStamp });
 
                 foreach (var tmprole in result)
                 {
-                    var role = new AppRole
+                    var role = new RoleModel
                     {
                         Id = tmprole.Id,
                         Name = tmprole.Name,
@@ -714,7 +761,8 @@ namespace Auth.Api.Services
 
                 if (appRole == null)
                 {
-                    result = await _roleManager.CreateAsync(new IdentityRole(request.UserGroupName));
+                    //result = await _roleManager.CreateAsync(new IdentityRole(request.UserGroupName));
+                    result = await _roleManager.CreateAsync(new AppRole(request.UserGroupName));
                     appRole = await _roleManager.FindByNameAsync(request.UserGroupName);
 
                     request.UserGroupId = appRole.Id;
@@ -896,14 +944,14 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<AppRole> GetAspNetRoleByName(string name)
+        public async Task<RoleModel> GetAspNetRoleByName(string name)
         {
             try
             {
                 var role = _roleManager.Roles.AsNoTracking().FirstOrDefault(c => c.Name == name);
                 var userCount = (await _userManager.GetUsersInRoleAsync(role.Name)).Count;
 
-                return new AppRole
+                return new RoleModel
                 {
                     Id = role.Id,
                     Name = role.Name,

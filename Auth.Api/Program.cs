@@ -21,7 +21,7 @@ var configuration = builder.Services.BuildServiceProvider().GetService<IConfigur
 // Add services to the container.
 builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
 builder.Services.AddDbContext<UserIdentityContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Transient);
-builder.Services.AddIdentity<AppUser, IdentityRole>().AddEntityFrameworkStores<UserIdentityContext>()
+builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<UserIdentityContext>()
     .AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>));
 
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();

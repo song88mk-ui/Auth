@@ -157,6 +157,20 @@ namespace Auth.Api.Controllers
             }
         }
 
+        [HttpGet("usergroup")]
+        public async Task<IActionResult> GetUserGroup([FromQuery] string? id = "", int? userGroupIdRef = 0)
+        {
+            var result = await _userIdentityService.GetAspNetRoles(id, userGroupIdRef.Value);
+
+            switch (result.StatusCode)
+            {
+                case AuthStatusCode.Success:
+                    return Ok(result);
+                default:
+                    return BadRequest(result);
+            }
+        }
+
         [HttpPost("usergroup/list")]
         public async Task<IActionResult> GetUserGroupList([FromBody] UserGroupListRequest? request = null)
         {
