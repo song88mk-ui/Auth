@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -27,6 +29,7 @@ namespace Auth.Api.Repositories
         private IUserIdentityService _userIdentityService { get; set; }
         private readonly IMemCache _cacheAccess;
         private AuthContext _authContext { get; set; }
+        private int _sessionExpirationInSeconds = 300;
 
         #endregion
 
@@ -153,6 +156,7 @@ namespace Auth.Api.Repositories
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
             {
                 var oldToken = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id);
+                var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
                 if (oldToken.Any())
                     _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
@@ -163,7 +167,8 @@ namespace Auth.Api.Repositories
                     LoginProvider = loginModel.Provider,
                     Name = loginModel.Name,
                     Value = token,
-                    OperatorToken = operatorToken
+                    OperatorToken = operatorToken,
+                    SessionExpirationDate = sessionExpirationDate
                 });
 
                 if (loginModel != null)
@@ -183,10 +188,13 @@ namespace Auth.Api.Repositories
 
                 _authContext.SaveChanges();
                 scope.Complete();
-                var tokenModel = new TokenModel()
+                var tokenModel = new TokenCacheModel()
                 {
+                    UserId = user.Id,
+                    UserIdRef = user.IdRef ?? 0,
                     OperatorToken = operatorToken,
-                    AccessToken = token
+                    AccessToken = token,
+                    SessionExpirationDate = sessionExpirationDate
                 };
                 _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
             }
@@ -210,7 +218,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                if(user.AppId.ToString() != content.Provider)
+                if (user.AppId.ToString() != content.Provider)
                 {
                     return new BaseResponse<TokenModel>
                     {
@@ -311,7 +319,7 @@ namespace Auth.Api.Repositories
             var user = await _userManager.FindByNameAsync(userEntity.UserName);
             _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == token && x.UserId == user.Id).FirstOrDefault());
             _authContext.SaveChangesAsync();
-            var operatorToken = _cacheAccess.GetCache<TokenModel>(user.Id);
+            var operatorToken = _cacheAccess.GetCache<TokenCacheModel>(user.Id);
             if (operatorToken != null)
             {
                 _cacheAccess.DeleteCache(user.Id);
@@ -380,10 +388,11 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var cacheToken = _cacheAccess.GetCache<TokenModel>(userId.ToUpper());
+                var cacheToken = _cacheAccess.GetCache<TokenCacheModel>(userId.ToUpper());
+
                 if (cacheToken == null)
                 {
-                    var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+                    var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
 
                     if (userToken == null)
                     {
@@ -395,10 +404,40 @@ namespace Auth.Api.Repositories
                         };
                     }
 
-                    var tokenModel = new TokenModel()
+                    var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                    token = userToken.Value;
+                    var tokenModel = new TokenCacheModel()
                     {
                         OperatorToken = userToken.OperatorToken ?? "",
-                        AccessToken = userToken.Value
+                        AccessToken = token,
+                        SessionExpirationDate = sessionExpirationDate
+
+                    };
+                    _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                    cacheToken = tokenModel;
+                }
+                else if (cacheToken.SessionExpirationDate < DateTime.UtcNow)
+                {
+                    var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
+
+                    if (userToken == null)
+                    {
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Invalid Token.",
+                            Result = null
+                        };
+                    }
+
+                    var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                    token = userToken.Value;
+                    var tokenModel = new TokenCacheModel()
+                    {
+                        OperatorToken = userToken.OperatorToken ?? "",
+                        AccessToken = token,
+                        SessionExpirationDate = sessionExpirationDate
+
                     };
                     _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
                     cacheToken = tokenModel;
@@ -429,7 +468,7 @@ namespace Auth.Api.Repositories
         {
             try
             {
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).Select(x => new { x.UserId }).FirstOrDefault();
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
 
                 if (userToken == null)
                 {
@@ -441,11 +480,18 @@ namespace Auth.Api.Repositories
                     };
                 }
 
+                if (userToken != null)
+                {
+                    userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+
+                    _authContext.AspNetUserTokens.Update(userToken);
+                    _authContext.SaveChanges();
+                }
                 return new OperatorBaseResponse<object>
                 {
                     StatusCode = (int)StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = userToken
+                    Result = userToken.UserId
                 };
             }
             catch (Exception ex)
@@ -607,6 +653,23 @@ namespace Auth.Api.Repositories
                     Result = null
                 };
             }
+        }
+        public async Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions()
+        {
+            var cacheToken = _cacheAccess.GetCache<TokenCacheModel>().Where(x => x.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.SessionExpirationDate).ToList();
+            var result = new UsersOnlineResponse();
+
+            foreach (var item in cacheToken)
+            {
+                result.OnlineUsers.Add(item.UserIdRef);
+            }
+
+            return new BaseResponse<UsersOnlineResponse>()
+            {
+                StatusCode = StatusCode.Success,
+                Message = StatusCode.Success.ToString(),
+                Result = result
+            };
         }
 
         #endregion

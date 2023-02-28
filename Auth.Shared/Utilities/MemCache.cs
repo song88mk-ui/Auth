@@ -41,6 +41,19 @@ namespace Auth.Shared.Utilities
 
             return result == null ? new KeyValuePair<bool, long>(false, 0) : (KeyValuePair<bool, long>)result;
         }
+        public List<T> GetCache<T>() where T : class
+        {
+            var cached = MemoryCache.Default;
+
+            var result = new List<T>();
+
+            foreach (var item in cached)
+            {
+                result.Add((T)item.Value);
+            }
+
+            return result;
+        }
 
         public T GetCache<T>(string key) where T : class
         {

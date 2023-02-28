@@ -12,5 +12,6 @@ namespace Auth.Api.Repositories
         Task<BaseResponse<TokenModel>> AuthenticateSecurityCode(AuthenticateSecurityCodeRequest request);
         Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly);
         Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, string search, MetaData metaData);
+        Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions();
     }
 }

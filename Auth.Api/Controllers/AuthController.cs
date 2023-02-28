@@ -205,5 +205,29 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
+        [HttpGet]
+        [Route("online")]
+        public async Task<IActionResult> GetUsersOnline()
+        {
+            try
+            {
+                var result = await _authRepository.GetActiveSessions();
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
     }
 }
