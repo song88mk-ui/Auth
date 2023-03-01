@@ -184,7 +184,7 @@ namespace Auth.Api.Controllers
         [HttpGet("usergroup")]
         public async Task<IActionResult> GetUserGroup([FromQuery] string? id = "", long? userGroupIdRef = 0)
         {
-            var result = await _userIdentityService.GetAspNetRoles(id, userGroupIdRef.Value);
+            var result = await _userIdentityService.GetAspNetRoles(id, userGroupIdRef.HasValue ? userGroupIdRef.Value : 0);
 
             switch (result.StatusCode)
             {
