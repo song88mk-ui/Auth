@@ -488,30 +488,7 @@ namespace Auth.Api.Services
                 //var isvalid = await _userManager.UserValidators(request);
                 user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
                 IdentityResult result = await _userManager.CreateAsync(user);
-                if (result.Succeeded)
-                {
-
-                    var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
-
-                    if (user.MainUserId != null)
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
-                        {
-                            var claims = new List<Claim>();
-                            if (request.Claims != null && request.Claims.Any())
-                            {
-                                claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
-                                await _userManager.AddClaimsAsync(user, claims);
-                            }
-                        }
-
-                    return new BaseResponse<long>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = newIdRef
-                    };
-                }
-                else
+                if (!result.Succeeded)
                 {
                     string errorMsg = "";
                     foreach (IdentityError error in result.Errors)
@@ -523,6 +500,26 @@ namespace Auth.Api.Services
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
                 }
+
+                var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                if (user.MainUserId != null)
+                    if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                    {
+                        var claims = new List<Claim>();
+                        if (request.Claims != null && request.Claims.Any())
+                        {
+                            claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                            await _userManager.AddClaimsAsync(user, claims);
+                        }
+                    }
+
+                return new BaseResponse<long>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = newIdRef
+                };
             }
             catch (Exception ex)
             {
@@ -596,37 +593,7 @@ namespace Auth.Api.Services
 
                 var result = await _userManager.UpdateAsync(user);
 
-                if (result.Succeeded)
-                {
-                    if (user.MainUserId != null)
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
-                        {
-                            var oldClaims = await _userManager.GetClaimsAsync(user);
-                            var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
-
-                            var claims = new List<Claim>();
-                            if (request.Claims != null && request.Claims.Any())
-                            {
-                                claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
-                                await _userManager.AddClaimsAsync(user, claims);
-                            }
-                        }
-
-                    if (!string.IsNullOrEmpty(request.Password))
-                    {
-                        user.PasswordHash = request.Password;
-
-                        await ChangePasswordAspNetUsers(user);
-                    }
-
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = true
-                    };
-                }
-                else
+                if (!result.Succeeded)
                 {
                     string errorMsg = "";
                     foreach (IdentityError error in result.Errors)
@@ -638,6 +605,34 @@ namespace Auth.Api.Services
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
                 }
+
+                if (user.MainUserId != null)
+                    if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                    {
+                        var oldClaims = await _userManager.GetClaimsAsync(user);
+                        var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
+
+                        var claims = new List<Claim>();
+                        if (request.Claims != null && request.Claims.Any())
+                        {
+                            claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                            await _userManager.AddClaimsAsync(user, claims);
+                        }
+                    }
+
+                if (!string.IsNullOrEmpty(request.Password))
+                {
+                    user.PasswordHash = request.Password;
+
+                    await ChangePasswordAspNetUsers(user);
+                }
+
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
+                };
 
             }
             catch (Exception ex)
@@ -661,26 +656,7 @@ namespace Auth.Api.Services
 
                 var result = await _userManager.UpdateAsync(user);
 
-                if (result.Succeeded)
-                {
-                    var oldClaims = await _userManager.GetClaimsAsync(user);
-                    var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
-
-                    var claims = new List<Claim>();
-                    if (request.Claims != null && request.Claims.Any())
-                    {
-                        claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
-                        await _userManager.AddClaimsAsync(user, claims);
-                    }
-
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = true
-                    };
-                }
-                else
+                if (!result.Succeeded)
                 {
                     string errorMsg = "";
                     foreach (IdentityError error in result.Errors)
@@ -692,6 +668,23 @@ namespace Auth.Api.Services
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
                 }
+
+                var oldClaims = await _userManager.GetClaimsAsync(user);
+                var removeClaims = await _userManager.RemoveClaimsAsync(user, oldClaims);
+
+                var claims = new List<Claim>();
+                if (request.Claims != null && request.Claims.Any())
+                {
+                    claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                    await _userManager.AddClaimsAsync(user, claims);
+                }
+
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
+                };
 
             }
             catch (Exception ex)
@@ -737,17 +730,7 @@ namespace Auth.Api.Services
                 }
 
                 IdentityResult result = await _userManager.UpdateAsync(user);
-                if (result.Succeeded)
-                {
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = true
-                    };
-                }
-
-                else
+                if (!result.Succeeded)
                 {
                     string errorMsg = "";
                     foreach (IdentityError error in result.Errors)
@@ -759,6 +742,13 @@ namespace Auth.Api.Services
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
                 }
+
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
+                };
 
             }
             catch (Exception ex)
@@ -796,47 +786,7 @@ namespace Auth.Api.Services
                     result = await _roleManager.UpdateAsync(appRole);
                 }
 
-                if (result.Succeeded)
-                {
-                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
-                    {
-                        foreach (var claims in request.Claims)
-                        {
-                            var newClaims = _userIdentityContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claims.ClaimType);
-                            if (newClaims == null)
-                            {
-                                Claim newClaims2 = new Claim(claims.ClaimType, claims.ClaimValue);
-                                await _roleManager.AddClaimAsync(appRole, newClaims2);
-                            }
-                            else
-                            {
-                                newClaims.ClaimValue = claims.ClaimValue;
-                                _userIdentityContext.RoleClaims.Update(newClaims);
-
-                                await _userIdentityContext.SaveChangesAsync();
-
-                                _userIdentityContext.Entry(newClaims).State = EntityState.Detached;
-                            }
-                        }
-
-
-                        scope.Complete();
-
-                    }
-
-                    return new BaseResponse<UserGroupResponse>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = new UserGroupResponse
-                        {
-                            UserGroupId = appRole.Id,
-                            UserGroupName = appRole.Name,
-                            Claims = request.Claims
-                        }
-                    };
-                }
-                else
+                if (!result.Succeeded)
                 {
                     string errorMsg = "";
                     foreach (IdentityError error in result.Errors)
@@ -848,6 +798,44 @@ namespace Auth.Api.Services
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
                 }
+
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+                {
+                    foreach (var claims in request.Claims)
+                    {
+                        var newClaims = _userIdentityContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claims.ClaimType);
+                        if (newClaims == null)
+                        {
+                            Claim newClaims2 = new Claim(claims.ClaimType, claims.ClaimValue);
+                            await _roleManager.AddClaimAsync(appRole, newClaims2);
+                        }
+                        else
+                        {
+                            newClaims.ClaimValue = claims.ClaimValue;
+                            _userIdentityContext.RoleClaims.Update(newClaims);
+
+                            await _userIdentityContext.SaveChangesAsync();
+
+                            _userIdentityContext.Entry(newClaims).State = EntityState.Detached;
+                        }
+                    }
+
+
+                    scope.Complete();
+
+                }
+
+                return new BaseResponse<UserGroupResponse>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new UserGroupResponse
+                    {
+                        UserGroupId = appRole.Id,
+                        UserGroupName = appRole.Name,
+                        Claims = request.Claims
+                    }
+                };
 
             }
             catch (Exception ex)
@@ -887,17 +875,7 @@ namespace Auth.Api.Services
 
                 IdentityResult result = await _roleManager.DeleteAsync(appRole);
 
-                if (result.Succeeded)
-                {
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = true
-                    };
-                }
-
-                else
+                if (!result.Succeeded)
                 {
                     string errorMsg = "";
                     foreach (IdentityError error in result.Errors)
@@ -908,9 +886,15 @@ namespace Auth.Api.Services
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
+
                 }
 
-
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
+                };
             }
             catch (Exception ex)
             {
@@ -993,19 +977,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var idRef = 0l;
-
-                long.TryParse(userId, out idRef);
-
-                var user = new AppUser();
-                if (idRef != 0)
-                {
-                    var appUser = _authContext.AspNetUsers.Where(x => x.IdRef == idRef).FirstOrDefault();
-
-                    userId = appUser == null ? userId : appUser.Id;
-                }
-
-                user = await _userManager.FindByIdAsync(userId);
+                var user = await _userManager.FindByIdAsync(GetUserId(userId));
 
                 var claimsModel = new List<ClaimModel>();
                 if (user != null)
@@ -1053,19 +1025,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var idRef = 0l;
-
-                long.TryParse(userId, out idRef);
-
-                var user = new AppUser();
-                if (idRef != 0)
-                {
-                    var appUser = _authContext.AspNetUsers.Where(x => x.IdRef == idRef).FirstOrDefault();
-
-                    userId = appUser == null ? userId : appUser.Id;
-                }
-
-                user = await _userManager.FindByIdAsync(userId);
+                var user = await _userManager.FindByIdAsync(GetUserId(userId));
 
                 if (user == null)
                 {
@@ -1088,19 +1048,25 @@ namespace Auth.Api.Services
                     result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
                 }
 
-                if (result.Succeeded)
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = true
-                    };
-                else
+                if (!result.Succeeded)
+                {
+                    string errorMsg = "";
+                    foreach (IdentityError error in result.Errors)
+                        errorMsg += error.Description.ToString() + ",";
+
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Error,
-                        Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({result})"
+                        Message = $"{errorMsg.TrimEnd(',')} "
                     };
+                }
+
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
+                };
             }
             catch (Exception ex)
             {
@@ -1111,7 +1077,68 @@ namespace Auth.Api.Services
                 };
             }
         }
+        public async Task<BaseResponse<bool>> SetNickname(string userId, string nickname)
+        {
+            try
+            {
+                var exisitingNickname = _authContext.AspNetUsers.FirstOrDefaultAsync(x => x.NickName == nickname);
+                var existingUser = await _userManager.FindByNameAsync(nickname);
 
+                if (existingUser != null || exisitingNickname != null)
+                {
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = $"Nickname already exists",
+                        Result = false
+                    };
+                }
+
+                var user = await _userManager.FindByIdAsync(GetUserId(userId));
+
+                if (user == null)
+                {
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = $"User does not exist",
+                        Result = false
+                    };
+                }
+
+                user.NickName = nickname;
+                var result = await _userManager.UpdateAsync(user);
+
+                if (!result.Succeeded)
+                {
+                    string errorMsg = "";
+                    foreach (IdentityError error in result.Errors)
+                        errorMsg += error.Description.ToString() + ",";
+
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = $"{errorMsg.TrimEnd(',')} "
+                    };
+                }
+
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<bool>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})",
+                    Result = false
+                };
+            }
+        }
         public async Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request)
         {
             var mKey = $"rru:{request.RoleId}:{request.ClaimType}";
@@ -1196,7 +1223,16 @@ namespace Auth.Api.Services
         #endregion
 
         #region Utilities
+        private string GetUserId(string id)
+        {
+            if (long.TryParse(id, out long idRef))
+            {
+                var appUser = _authContext.AspNetUsers.FirstOrDefault(x => x.IdRef == idRef);
 
+                id = appUser == null ? id : appUser.Id;
+            }
+            return id;
+        }
         private List<AppUser> GetUserList(string selection, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
         {
             var users = new List<AppUser>();
@@ -1252,7 +1288,7 @@ namespace Auth.Api.Services
 
             return users;
         }
-        
+
         private async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
         {
             var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();

@@ -31,6 +31,7 @@ namespace Auth.Api.Services
         Task<RoleModel> GetAspNetRoleByName(string name);
         Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
         Task<BaseResponse<bool>> ChangePassword(string userId, string currentPassword, string newPassword);
+        Task<BaseResponse<bool>> SetNickname(string userId, string nickname);
         Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request);
     }
 }

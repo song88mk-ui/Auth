@@ -92,6 +92,29 @@ namespace Auth.Api.Controllers
             }
         }
 
+        [HttpPost("nickname/{userId}")]
+        public async Task<IActionResult> SetNickname(string userId,[FromBody] string nickname)
+        {
+            try
+            {
+                var result = await _userIdentityService.GetCurrentUser(userId);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
         [HttpGet("")]
         public async Task<IActionResult> GetUser([FromQuery] string id)
         {
@@ -292,7 +315,6 @@ namespace Auth.Api.Controllers
             }
         }
 
-
         [HttpPost("password/{userId}")]
         public async Task<IActionResult> UpdatePassword([FromRoute] string userId, [FromBody] ChangePasswordRequest request)
         {
@@ -315,7 +337,6 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
-
 
         [HttpPost("report/roles/url")]
         public async Task<IActionResult> GetReportRolesUrl([FromBody] ReportRolesUrlRequest request)

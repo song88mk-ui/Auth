@@ -238,35 +238,36 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) == PasswordVerificationResult.Success)
+                if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
-                    var accessToken = "";
-
-                    var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
-
-                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef);
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
-
-                    var operatorToken = Guid.NewGuid().ToString();
-                    await SaveToken(user, accessToken, operatorToken, content);
-
                     return new BaseResponse<TokenModel>
                     {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = new TokenModel()
-                        {
-                            OperatorToken = operatorToken,
-                            AccessToken = accessToken
-                        }
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "Incorrect password.",
+                        Result = null
                     };
                 }
+
+                var accessToken = "";
+
+                var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
+
+                var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef);
+                var tokenHandler = new JwtSecurityTokenHandler();
+                accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
+
+                var operatorToken = Guid.NewGuid().ToString();
+                await SaveToken(user, accessToken, operatorToken, content);
+
                 return new BaseResponse<TokenModel>
                 {
-                    StatusCode = StatusCode.Unauthorized,
-                    Message = "Incorrect password.",
-                    Result = null
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new TokenModel()
+                    {
+                        OperatorToken = operatorToken,
+                        AccessToken = accessToken
+                    }
                 };
             }
             catch (Exception ex)
