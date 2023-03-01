@@ -488,11 +488,18 @@ namespace Auth.Api.Repositories
                     _authContext.AspNetUserTokens.Update(userToken);
                     _authContext.SaveChanges();
                 }
+
+                var user = await _userManager.FindByIdAsync(userToken.UserId);
+
                 return new OperatorBaseResponse<object>
                 {
                     StatusCode = (int)StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = userToken.UserId
+                    Result = new
+                    {
+                        UserId = userToken.UserId,
+                        IdRef = user.IdRef
+                    }
                 };
             }
             catch (Exception ex)

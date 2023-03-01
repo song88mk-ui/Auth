@@ -475,7 +475,7 @@ namespace Auth.Api.Services
                     IdRef = newIdRef,
                     EmailConfirmed = true,
                     CreatedDate = DateTime.UtcNow,
-                    MainUserId = request.MainUserId,
+                    MainUserId = string.IsNullOrWhiteSpace(request.MainUserId) ? string.Empty : GetUserId(request.MainUserId),
                     AppId = request.AppId,
                     AppName = request.AppName,
                     NickName = request.NickName
@@ -653,6 +653,8 @@ namespace Auth.Api.Services
                 var oldRoles = await _userManager.GetRolesAsync(user);
                 var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
                 var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                user.MainUserId = string.IsNullOrWhiteSpace(request.MainUserId) ? string.Empty : GetUserId(request.MainUserId);
 
                 var result = await _userManager.UpdateAsync(user);
 
