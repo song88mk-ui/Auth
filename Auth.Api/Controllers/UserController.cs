@@ -298,7 +298,7 @@ namespace Auth.Api.Controllers
         {
             try
             {
-                var result = await _userIdentityService.ChangePassword(userId, request.OldPassword ?? "", request.NewPassword);
+                var result = await _userIdentityService.ChangePassword(userId, request.OldPassword, request.NewPassword);
 
                 switch (result.StatusCode)
                 {
