@@ -121,7 +121,7 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<BaseResponse<UserGroupResponse>> GetAspNetRoles(string roleId, int userGroupIdRef)
+        public async Task<BaseResponse<UserGroupResponse>> GetAspNetRoles(string roleId, long userGroupIdRef)
         {
             try
             {
