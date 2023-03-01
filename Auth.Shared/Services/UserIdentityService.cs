@@ -557,6 +557,12 @@ namespace Auth.Api.Services
             try
             {
                 var user = (await _userManager.FindByIdAsync(request.UserId));
+
+                //if (user == null || request.UserId == null)
+                //{
+                //    user = _authContext.AspNetUsers.Where(x => x.IdRef == request.UserIdRef).FirstOrDefault();
+                //}
+
                 if (!isDefault)
                 {
                     user.Email = request.Email;
