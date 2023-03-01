@@ -781,7 +781,11 @@ namespace Auth.Api.Services
                 if (appRole == null)
                 {
                     //result = await _roleManager.CreateAsync(new IdentityRole(request.UserGroupName));
-                    result = await _roleManager.CreateAsync(new AppRole(request.UserGroupName));
+                    var role = new AppRole(request.UserGroupName);
+
+                    role.UserGroupIdRef = ConvertToEpochTimestamp(DateTime.UtcNow);
+
+                    result = await _roleManager.CreateAsync(role);
                     appRole = await _roleManager.FindByNameAsync(request.UserGroupName);
 
                     request.UserGroupId = appRole.Id;
@@ -1248,7 +1252,8 @@ namespace Auth.Api.Services
 
             return users;
         }
-        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
+        
+        private async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly)
         {
             var result = await _authContext.Permission.Where(p => isSubUserOnly == false || p.IsSubUser == isSubUserOnly).ToListAsync();
 
@@ -1276,6 +1281,17 @@ namespace Auth.Api.Services
                 }
             };
         }
+
+        private long ConvertToEpochTimestamp(DateTime date)
+        {
+            DateTime origin = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            TimeSpan diff = date.ToUniversalTime() - origin;
+
+            var retval = long.Parse(Math.Floor(diff.TotalMilliseconds).ToString());
+
+            return retval;
+        }
+
         #endregion
     }
 }
