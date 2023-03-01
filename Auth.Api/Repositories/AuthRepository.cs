@@ -191,7 +191,7 @@ namespace Auth.Api.Repositories
                 var tokenModel = new TokenCacheModel()
                 {
                     UserId = user.Id,
-                    UserIdRef = user.IdRef ?? 0,
+                    UserIdRef = user.IdRef,
                     OperatorToken = operatorToken,
                     AccessToken = token,
                     SessionExpirationDate = sessionExpirationDate
@@ -244,7 +244,7 @@ namespace Auth.Api.Repositories
 
                     var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef ?? 0);
+                    var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef);
                     var tokenHandler = new JwtSecurityTokenHandler();
                     accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
@@ -537,7 +537,7 @@ namespace Auth.Api.Repositories
 
                 var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                var token = GenerateToken(user.Id, role, Application.AgentManagementSystem.ToString(), user.UserName, user.MainUserId, user.IdRef ?? 0);
+                var token = GenerateToken(user.Id, role, Application.AgentManagementSystem.ToString(), user.UserName, user.MainUserId, user.IdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 

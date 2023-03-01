@@ -83,7 +83,7 @@ namespace Auth.Api.Services
                         var userResponse = new UserResponse
                         {
                             UserId = s.Id,
-                            UserIdRef = s.IdRef ?? 0l,
+                            UserIdRef = s.IdRef,
                             NickName = s.NickName,
                             UserName = s.UserName,
                             Email = s.Email,
@@ -326,7 +326,7 @@ namespace Auth.Api.Services
                                (users, userGroups) => new UserResponse()
                                {
                                    UserId = users.Id,
-                                   UserIdRef = users.IdRef ?? 0l,
+                                   UserIdRef = users.IdRef,
                                    NickName = users.NickName,
                                    UserName = users.UserName,
                                    Password = users.PasswordHash,
@@ -465,27 +465,31 @@ namespace Auth.Api.Services
         {
             try
             {
-                var idRef = $"{((int)Application.AgentManagementSystem).ToString("00")}{DateTime.UtcNow.ToString("yyMMdd")}";
-                var suffix = _userManager.Users.Where(x => x.IdRef.ToString().StartsWith(idRef)).OrderByDescending(x => x.IdRef).Select(x => x.IdRef).FirstOrDefault();
-                var count = 0;
+                long newIdRef = Convert.ToInt64(_userManager.Users.Max(u => u.IdRef) + 1);
 
-                if (suffix != null)
-                {
-                    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 2), out count);
-                }
-                count++;
-                idRef += count.ToString("00");
+                //var idRef = $"{((int)Application.AgentManagementSystem).ToString("00")}{DateTime.UtcNow.ToString("yyMMdd")}";
+                //var suffix = _userManager.Users.Where(x => x.IdRef.ToString().StartsWith(idRef)).OrderByDescending(x => x.IdRef).Select(x => x.IdRef).FirstOrDefault();
+                //var count = 0;
 
-                if (suffix != null)
-                {
-                    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 3), out count);
-                }
+                //if (suffix != null)
+                //{
+                //    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 2), out count);
+                //}
+                //count++;
+                //idRef += count.ToString("00");
 
-                idRef += count.ToString("00");
+                //if (suffix != null)
+                //{
+                //    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 3), out count);
+                //}
 
-                var newIdRef = 0l;
+                //idRef += count.ToString("00");
 
-                long.TryParse(idRef, out newIdRef);
+
+
+                //var newIdRef = 0l;
+
+                //long.TryParse(idRef, out newIdRef);
 
                 var user = new AppUser
                 {
@@ -509,6 +513,7 @@ namespace Auth.Api.Services
                 IdentityResult result = await _userManager.CreateAsync(user);
                 if (result.Succeeded)
                 {
+                    
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
                     if (user.MainUserId != null)
@@ -988,7 +993,7 @@ namespace Auth.Api.Services
                     Result = user == null ? new UserResponse() : new UserResponse
                     {
                         UserId = user.Id,
-                        UserIdRef = user.IdRef ?? 0l,
+                        UserIdRef = user.IdRef,
                         NickName = user.NickName,
                         UserName = user.UserName,
                         Email = user.Email,
@@ -1050,7 +1055,7 @@ namespace Auth.Api.Services
                     Result = new UserResponse
                     {
                         UserId = user.Id,
-                        UserIdRef = user.IdRef ?? 0l,
+                        UserIdRef = user.IdRef,
                         NickName = user.NickName,
                         UserName = user.UserName,
                         Email = user.Email,
