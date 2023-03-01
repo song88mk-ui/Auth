@@ -7,7 +7,7 @@
             Claims = new List<ClaimModel>();
         }
         public string UserGroupId { get; set; }
-        public int UserGroupIdRef { get; set; }
+        public long UserGroupIdRef { get; set; }
         public string UserGroupName { get; set; }
         public List<ClaimModel> Claims { get; set; }
     }

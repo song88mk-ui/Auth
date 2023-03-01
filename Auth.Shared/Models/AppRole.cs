@@ -14,6 +14,6 @@ namespace Auth.Shared.Models
             Name = roleName;
         }
 
-        public int UserGroupIdRef { get; set; }
+        public long UserGroupIdRef { get; set; }
     }
 }

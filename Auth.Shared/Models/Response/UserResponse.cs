@@ -15,6 +15,7 @@
         public string Status { get; set; }
         public string RoleId { get; set; }
         public string RoleName { get; set; }
+        public long UserGroupIdRef { get; set; }
         public List<ClaimModel> Claims { get; set; }
     }
 }

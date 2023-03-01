@@ -16,7 +16,7 @@ namespace Auth.Api.Services
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
-        Task<BaseResponse<UserGroupResponse>> GetAspNetRoles(string roleId, int userGroupIdRef);
+        Task<BaseResponse<UserGroupResponse>> GetAspNetRoles(string roleId, long userGroupIdRef);
         Task<BaseResponse<UserGroupListResponse>> GetAspNetRolesList(UserGroupListRequest request);
         Task<RoleModel> GetAspNetUsersRole(AppUser user);
         Task<BaseResponse<UserListResponse>> GetAspNetRoleUsers(UserGroupRequest request, bool isShowSuperAdmin = false);
@@ -30,6 +30,7 @@ namespace Auth.Api.Services
         Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user);
         Task<RoleModel> GetAspNetRoleByName(string name);
         Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
+        Task<BaseResponse<UserResponse>> GetUser(string id);
         Task<BaseResponse<bool>> ChangePassword(AppUser user, string currentPassword, string newPassword);
         Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request);
     }

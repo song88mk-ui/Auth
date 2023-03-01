@@ -91,6 +91,30 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
+        [HttpGet("")]
+        public async Task<IActionResult> GetUser([FromQuery] string id)
+        {
+            try
+            {
+                var result = await _userIdentityService.GetUser(id);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
         [HttpPost("list")]
         public async Task<IActionResult> GetManageUserList([FromBody] UserGroupRequest user, [FromQuery] bool isShowSuperAdmin = false)
         {
@@ -158,7 +182,7 @@ namespace Auth.Api.Controllers
         }
 
         [HttpGet("usergroup")]
-        public async Task<IActionResult> GetUserGroup([FromQuery] string? id = "", int? userGroupIdRef = 0)
+        public async Task<IActionResult> GetUserGroup([FromQuery] string? id = "", long? userGroupIdRef = 0)
         {
             var result = await _userIdentityService.GetAspNetRoles(id, userGroupIdRef.Value);
 
