@@ -774,7 +774,7 @@ namespace Auth.Api.Services
 
                     role.UserGroupIdRef = ConvertToEpochTimestamp(DateTime.UtcNow);
 
-                    result = await _roleManager.CreateAsync(new AppRole(request.UserGroupName));
+                    result = await _roleManager.CreateAsync(role);
                     appRole = await _roleManager.FindByNameAsync(request.UserGroupName);
 
                     request.UserGroupId = appRole.Id;
