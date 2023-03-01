@@ -468,30 +468,6 @@ namespace Auth.Api.Services
             {
                 long newIdRef = Convert.ToInt64(_userManager.Users.Max(u => u.IdRef) + 1);
 
-                //var idRef = $"{((int)Application.AgentManagementSystem).ToString("00")}{DateTime.UtcNow.ToString("yyMMdd")}";
-                //var suffix = _userManager.Users.Where(x => x.IdRef.ToString().StartsWith(idRef)).OrderByDescending(x => x.IdRef).Select(x => x.IdRef).FirstOrDefault();
-                //var count = 0;
-
-                //if (suffix != null)
-                //{
-                //    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 2), out count);
-                //}
-                //count++;
-                //idRef += count.ToString("00");
-
-                //if (suffix != null)
-                //{
-                //    int.TryParse(suffix.ToString().Substring(suffix.ToString().Length - 3), out count);
-                //}
-
-                //idRef += count.ToString("00");
-
-
-
-                //var newIdRef = 0l;
-
-                //long.TryParse(idRef, out newIdRef);
-
                 var user = new AppUser
                 {
                     UserName = request.UserName,
@@ -514,7 +490,7 @@ namespace Auth.Api.Services
                 IdentityResult result = await _userManager.CreateAsync(user);
                 if (result.Succeeded)
                 {
-                    
+
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
                     if (user.MainUserId != null)
@@ -561,12 +537,13 @@ namespace Auth.Api.Services
         {
             try
             {
-                var user = (await _userManager.FindByIdAsync(request.UserId));
+                var userId = request.UserId;
 
-                //if (user == null || request.UserId == null)
-                //{
-                //    user = _authContext.AspNetUsers.Where(x => x.IdRef == request.UserIdRef).FirstOrDefault();
-                //}
+                if (string.IsNullOrWhiteSpace(request.UserId))
+                {
+                    userId = _authContext.AspNetUsers.Where(x => x.IdRef == request.UserIdRef).FirstOrDefault().Id.ToString();
+                }
+                var user = (await _userManager.FindByIdAsync(userId));
 
                 if (!isDefault)
                 {
@@ -587,8 +564,35 @@ namespace Auth.Api.Services
                 }
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
-                var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
-                var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                if (string.IsNullOrWhiteSpace(request.RoleId))
+                {
+                    var userRole = _authContext.AspNetUserRoles.Join(_authContext.AspNetRoles, userRole => userRole.RoleId.ToLower(), role => role.Id.ToLower(), (userRole, role) => new { UserRole = userRole, Role = role })
+                        .Where(x => x.UserRole.UserId == user.Id)
+                             .Select(p => new ClaimModel
+                             {
+                                 ClaimType = p.Role.Id,
+                                 ClaimValue = p.Role.Name
+                             }).FirstOrDefault();
+
+                    if (userRole != null)
+                    {
+                        request.RoleId = userRole.ClaimType;
+                        request.RoleName = userRole.ClaimValue;
+                    }
+                    else
+                    {
+
+                        request.RoleId = "16069fe1-ecd0-41cb-a7e5-deeacd0fa8c5";
+                        request.RoleName = "Default";
+                    }
+                }
+                else
+                {
+                    var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
+                    var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+                }
+                request.CreatedDate = user.CreatedDate;
 
                 var result = await _userManager.UpdateAsync(user);
 
@@ -1006,6 +1010,9 @@ namespace Auth.Api.Services
                     claimsModel = userClaim == null ? new List<ClaimModel>() : userClaim.Select(s => new ClaimModel { ClaimType = s.Type, ClaimValue = s.Value }).ToList();
                 }
 
+                var roleName = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
+                var role = await _roleManager.FindByNameAsync(roleName);
+
                 return new BaseResponse<UserResponse>
                 {
                     StatusCode = StatusCode.Success,
@@ -1022,6 +1029,9 @@ namespace Auth.Api.Services
                         AppName = user.AppName,
                         MainUserId = user.MainUserId,
                         Status = user.LockoutEnd != null ? "Locked" : "Normal",
+                        RoleId = role.Id,
+                        RoleName = role.Name,
+                        UserGroupIdRef = role.UserGroupIdRef,
                         Claims = claimsModel
                     }
                 };
@@ -1035,77 +1045,44 @@ namespace Auth.Api.Services
                 };
             }
         }
-
-        public async Task<BaseResponse<UserResponse>> GetUser(string id)
+        public async Task<BaseResponse<bool>> ChangePassword(string userId, string currentPassword, string newPassword)
         {
             try
             {
-                long.TryParse(id, out long idRef);
+                var idRef = 0l;
 
-                var query = _userManager.Users;
+                long.TryParse(userId, out idRef);
 
-                if (idRef > 0)
+                var user = new AppUser();
+                if (idRef != 0)
                 {
-                    query = query.Where(c => c.IdRef == idRef);
-                }
-                else
-                {
-                    query = query.Where(c => c.Id == id);
+                    var appUser = _authContext.AspNetUsers.Where(x => x.IdRef == idRef).FirstOrDefault();
+
+                    userId = appUser == null ? userId : appUser.Id;
                 }
 
-                var user = await query.FirstOrDefaultAsync();
+                user = await _userManager.FindByIdAsync(userId);
 
                 if (user == null)
                 {
-                    return new BaseResponse<UserResponse>
+                    return new BaseResponse<bool>
                     {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = new UserResponse()
+                        StatusCode = StatusCode.Error,
+                        Message = $"User does not exist.",
+                        Result = false
                     };
                 }
 
-                var roleName = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
-                var role = await _roleManager.FindByNameAsync(roleName);
-
-                return new BaseResponse<UserResponse>
+                var result = new IdentityResult();
+                if (string.IsNullOrWhiteSpace(currentPassword))
                 {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new UserResponse
-                    {
-                        UserId = user.Id,
-                        UserIdRef = user.IdRef,
-                        NickName = user.NickName,
-                        UserName = user.UserName,
-                        Email = user.Email,
-                        CreatedDate = user.CreatedDate,
-                        AppId = user.AppId,
-                        AppName = user.AppName,
-                        MainUserId = user.MainUserId,
-                        Status = user.LockoutEnd != null ? "Locked" : "Normal",
-                        RoleId = role.Id,
-                        RoleName = role.Name,
-                        UserGroupIdRef = role.UserGroupIdRef,
-                        Claims = new List<ClaimModel>()
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<UserResponse>
+                    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                    result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+                }
+                else
                 {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
-
-        public async Task<BaseResponse<bool>> ChangePassword(AppUser user, string currentPassword, string newPassword)
-        {
-            try
-            {
-                var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+                    result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+                }
 
                 if (result.Succeeded)
                     return new BaseResponse<bool>

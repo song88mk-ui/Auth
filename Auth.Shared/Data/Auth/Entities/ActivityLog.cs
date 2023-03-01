@@ -17,5 +17,5 @@ namespace Auth.Shared.Data.Auth.Entities
         public string IpAddress { get; set; }
         public string Country { get; set; }
         public DateTime Date { get; set; }
-       }
+    }
 }

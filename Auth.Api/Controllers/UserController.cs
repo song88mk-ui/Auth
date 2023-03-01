@@ -96,8 +96,8 @@ namespace Auth.Api.Controllers
         public async Task<IActionResult> GetUser([FromQuery] string id)
         {
             try
-            {
-                var result = await _userIdentityService.GetUser(id);
+            { 
+                var result = await _userIdentityService.GetCurrentUser(id);
 
                 switch (result.StatusCode)
                 {
@@ -275,6 +275,30 @@ namespace Auth.Api.Controllers
             try
             {
                 var result = await _authRepository.GetActivityLogList(userId, search, metaData);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+
+        [HttpPost("password/{userId}")]
+        public async Task<IActionResult> UpdatePassword([FromRoute] string userId, [FromBody] ChangePasswordRequest request)
+        {
+            try
+            {
+                var result = await _userIdentityService.ChangePassword(userId, request.OldPassword ?? "", request.NewPassword);
 
                 switch (result.StatusCode)
                 {
