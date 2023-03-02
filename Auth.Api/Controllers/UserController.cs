@@ -69,7 +69,7 @@ namespace Auth.Api.Controllers
             }
         }
         [HttpPost("modify/{userId}")]
-        public async Task<IActionResult> Update([FromRoute] string userid, [FromQuery] UserModifyRequest request)
+        public async Task<IActionResult> Update([FromRoute] string userid, [FromBody] UserModifyRequest request)
         {
             try
             {
@@ -80,8 +80,8 @@ namespace Auth.Api.Controllers
                     UserName = "-.-",
                     Email = "-.-",
                     Password = "-.-",
-                    NickName = null,
-                    Status = request.IsLock != null ? ((bool)request.IsLock ? "Normal": "Locked") : "-.-",
+                    NickName = request.Nickname != null ? request.Nickname : "-.-",
+                    Status = request.Status != null ? request.Status: "-.-",
                     MainUserId = "-.-",
                     AppId = 0,
                     AppName = "-.-",

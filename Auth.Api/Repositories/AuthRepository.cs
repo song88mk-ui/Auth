@@ -390,7 +390,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var cacheToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix+ userId.ToUpper());
+                var cacheToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix + userId.ToUpper());
 
                 if (cacheToken == null)
                 {
@@ -415,7 +415,7 @@ namespace Auth.Api.Repositories
                         SessionExpirationDate = sessionExpirationDate
 
                     };
-                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix+user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix + user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
                     cacheToken = tokenModel;
                 }
                 else if (cacheToken.SessionExpirationDate < DateTime.UtcNow)
@@ -441,7 +441,7 @@ namespace Auth.Api.Repositories
                         SessionExpirationDate = sessionExpirationDate
 
                     };
-                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix+user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix + user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
                     cacheToken = tokenModel;
                 }
 
@@ -491,18 +491,21 @@ namespace Auth.Api.Repositories
                 }
 
                 var user = await _userManager.FindByIdAsync(userToken.UserId);
-                object result = new { UserId = userToken.UserId };
+                string result = userToken.UserId;
 
                 if (isAgent)
                 {
-                    result = new { IdRef = user.IdRef };
+                    result = user.IdRef.ToString();
                 }
 
                 return new OperatorBaseResponse<object>
                 {
                     StatusCode = (int)StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = result
+                    Result = new
+                    {
+                        UserId = result
+                    }
                 };
             }
             catch (Exception ex)

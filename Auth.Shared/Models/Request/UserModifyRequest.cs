@@ -9,6 +9,6 @@ namespace Auth.Shared.Models.Request
     public class UserModifyRequest
     {
         public string? Nickname { get; set; } = null;
-        public bool? IsLock { get; set; } = null;
+        public string? Status { get; set; } = null;
     }
 }
