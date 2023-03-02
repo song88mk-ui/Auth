@@ -79,7 +79,7 @@ namespace Auth.Api.Controllers
                     UserIdRef = 0,
                     UserName = "",
                     Email = "",
-                    Password = "",
+                    Password = request.Password,
                     NickName = request.Nickname,
                     Status = request.Status,
                     MainUserId = "",
