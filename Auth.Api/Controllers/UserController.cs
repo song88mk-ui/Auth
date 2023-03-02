@@ -202,14 +202,14 @@ namespace Auth.Api.Controllers
         }
 
         [HttpGet("permission/list")]
-        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly, int version = 0)
+        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly)
         {
             try
             {
-                var tempVersion = 0;
-                if(HttpContext.Request.Headers.ContainsKey("api-verion"))
+                var version = 0;
+                if(HttpContext.Request.Headers.ContainsKey("x-verion"))
                 {
-                    int.TryParse(HttpContext.Request.Headers["api-verion"].ToString(), out tempVersion);
+                    int.TryParse(HttpContext.Request.Headers["x-verion"].ToString(), out version);
                 }
 
                 var result = await _authRepository.GetPermissionList(isSubUserOnly, version);
