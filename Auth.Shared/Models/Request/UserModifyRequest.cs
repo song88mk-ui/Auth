@@ -8,7 +8,8 @@ namespace Auth.Shared.Models.Request
 {
     public class UserModifyRequest
     {
-        public string? Nickname { get; set; } = null;
-        public string? Status { get; set; } = null;
+        public string? Nickname { get; set; } = "";
+        public string? Status { get; set; } = "";
+        public string? Password { get; set; } = "";
     }
 }

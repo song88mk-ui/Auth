@@ -77,16 +77,16 @@ namespace Auth.Api.Controllers
                 {
                     UserId = userid,
                     UserIdRef = 0,
-                    UserName = "-.-",
-                    Email = "-.-",
-                    Password = "-.-",
-                    NickName = request.Nickname != null ? request.Nickname : "-.-",
-                    Status = request.Status != null ? request.Status: "-.-",
-                    MainUserId = "-.-",
+                    UserName = "",
+                    Email = "",
+                    Password = "",
+                    NickName = request.Nickname,
+                    Status = request.Status,
+                    MainUserId = "",
                     AppId = 0,
-                    AppName = "-.-",
-                    RoleId = "-.-",
-                    RoleName = "-.-",
+                    AppName = "",
+                    RoleId = "",
+                    RoleName = "",
                     Claims = new List<ClaimModel>(),
                     CreatedDate = DateTime.MinValue
                 };
@@ -111,29 +111,6 @@ namespace Auth.Api.Controllers
 
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetCurrentUser(string userId)
-        {
-            try
-            {
-                var result = await _userIdentityService.GetCurrentUser(userId);
-
-                switch (result.StatusCode)
-                {
-                    case AuthStatusCode.Success:
-                        return Ok(result);
-                    case AuthStatusCode.Unauthorized:
-                        return Unauthorized(result);
-                    default:
-                        return BadRequest(result);
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
-            }
-        }
-
-        [HttpPost("nickname/{userId}")]
-        public async Task<IActionResult> SetNickname(string userId, [FromBody] string nickname)
         {
             try
             {
@@ -338,29 +315,6 @@ namespace Auth.Api.Controllers
             try
             {
                 var result = await _authRepository.GetActivityLogList(userId, search, metaData);
-
-                switch (result.StatusCode)
-                {
-                    case AuthStatusCode.Success:
-                        return Ok(result);
-                    case AuthStatusCode.Unauthorized:
-                        return Unauthorized(result);
-                    default:
-                        return BadRequest(result);
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
-            }
-        }
-
-        [HttpPost("password/{userId}")]
-        public async Task<IActionResult> UpdatePassword([FromRoute] string userId, [FromBody] ChangePasswordRequest request)
-        {
-            try
-            {
-                var result = await _userIdentityService.ChangePassword(userId, request.OldPassword, request.NewPassword);
 
                 switch (result.StatusCode)
                 {

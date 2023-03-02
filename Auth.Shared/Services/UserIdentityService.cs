@@ -554,12 +554,16 @@ namespace Auth.Api.Services
                     user.EmailConfirmed = true;
                 }
 
-                if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
-                    user.LockoutEnd = DateTime.UtcNow;
-                else
-                    user.LockoutEnd = null;
+                if (!string.IsNullOrWhiteSpace(request.Status))
+                {
+                    if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
+                        user.LockoutEnd = DateTime.UtcNow;
+                    else
+                        user.LockoutEnd = null;
+                }
 
-                user.NickName = request.NickName;
+                if (!string.IsNullOrWhiteSpace(request.NickName))
+                    user.NickName = request.NickName;
 
                 if (!string.IsNullOrWhiteSpace(request.Password))
                 {
@@ -568,34 +572,11 @@ namespace Auth.Api.Services
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
 
-                if (string.IsNullOrWhiteSpace(request.RoleId))
-                {
-                    var userRole = _authContext.AspNetUserRoles.Join(_authContext.AspNetRoles, userRole => userRole.RoleId.ToLower(), role => role.Id.ToLower(), (userRole, role) => new { UserRole = userRole, Role = role })
-                        .Where(x => x.UserRole.UserId == user.Id)
-                             .Select(p => new ClaimModel
-                             {
-                                 ClaimType = p.Role.Id,
-                                 ClaimValue = p.Role.Name
-                             }).FirstOrDefault();
-
-                    if (userRole != null)
-                    {
-                        request.RoleId = userRole.ClaimType;
-                        request.RoleName = userRole.ClaimValue;
-                    }
-                    else
-                    {
-
-                        request.RoleId = "16069fe1-ecd0-41cb-a7e5-deeacd0fa8c5";
-                        request.RoleName = "Default";
-                    }
-                }
-                else
+                if (!string.IsNullOrWhiteSpace(request.RoleId))
                 {
                     var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
                 }
-                request.CreatedDate = user.CreatedDate;
 
                 var result = await _userManager.UpdateAsync(user);
 
