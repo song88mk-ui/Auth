@@ -117,6 +117,7 @@ namespace Auth.Api.Controllers
                 if(agentHeaderRequest != null)
                 {
                     isAgent = true;
+                    bool.TryParse(agentHeaderRequest, out isAgent);
                 }
 
                 var result = new OperatorBaseResponse<object>()
