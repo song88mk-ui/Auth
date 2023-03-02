@@ -471,7 +471,9 @@ namespace Auth.Api.Services
                 var user = new AppUser
                 {
                     UserName = request.UserName,
+                    NormalizedUserName = request.UserName.ToUpper(),
                     Email = request.Email,
+                    NormalizedEmail = request.Email != null ? request.Email.ToUpper() : null,
                     IdRef = newIdRef,
                     EmailConfirmed = true,
                     CreatedDate = DateTime.UtcNow,
@@ -487,33 +489,41 @@ namespace Auth.Api.Services
 
                 //var isvalid = await _userManager.UserValidators(request);
                 user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
-                IdentityResult result = await _userManager.CreateAsync(user);
-                if (!result.Succeeded)
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                 {
-                    string errorMsg = "";
-                    foreach (IdentityError error in result.Errors)
-                        errorMsg += error.Description.ToString() + ",";
-
-                    return new BaseResponse<long>
+                    IdentityResult result = await _userManager.CreateAsync(user);
+                    if (!result.Succeeded)
                     {
-                        StatusCode = StatusCode.Error,
-                        Message = $"{errorMsg.TrimEnd(',')} "
-                    };
-                }
+                        string errorMsg = "";
+                        foreach (IdentityError error in result.Errors)
+                            errorMsg += error.Description.ToString() + ",";
 
-                var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
-
-                if (user.MainUserId != null)
-                    if (!string.IsNullOrWhiteSpace(user.MainUserId))
-                    {
-                        var claims = new List<Claim>();
-                        if (request.Claims != null && request.Claims.Any())
+                        return new BaseResponse<long>
                         {
-                            claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
-                            await _userManager.AddClaimsAsync(user, claims);
-                        }
+                            StatusCode = StatusCode.Error,
+                            Message = $"{errorMsg.TrimEnd(',')} "
+                        };
                     }
 
+                    if (string.IsNullOrWhiteSpace(request.RoleId))
+                    {
+                        request.RoleName = "Default";
+                    }
+                        var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                    if (user.MainUserId != null)
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                        {
+                            var claims = new List<Claim>();
+                            if (request.Claims != null && request.Claims.Any())
+                            {
+                                claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                                await _userManager.AddClaimsAsync(user, claims);
+                            }
+                        }
+
+                    scope.Complete();
+                }
                 return new BaseResponse<long>
                 {
                     StatusCode = StatusCode.Success,
@@ -811,7 +821,6 @@ namespace Auth.Api.Services
 
 
                     scope.Complete();
-
                 }
 
                 return new BaseResponse<UserGroupResponse>
