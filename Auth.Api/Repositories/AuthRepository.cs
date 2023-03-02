@@ -30,6 +30,7 @@ namespace Auth.Api.Repositories
         private readonly IMemCache _cacheAccess;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
+        private string _cacheAccessPrefix = "ut:";
 
         #endregion
 
@@ -196,7 +197,7 @@ namespace Auth.Api.Repositories
                     AccessToken = token,
                     SessionExpirationDate = sessionExpirationDate
                 };
-                _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix + user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
             }
         }
 
@@ -320,7 +321,7 @@ namespace Auth.Api.Repositories
             var user = await _userManager.FindByNameAsync(userEntity.UserName);
             _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == token && x.UserId == user.Id).FirstOrDefault());
             _authContext.SaveChangesAsync();
-            var operatorToken = _cacheAccess.GetCache<TokenCacheModel>(user.Id);
+            var operatorToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix + user.Id);
             if (operatorToken != null)
             {
                 _cacheAccess.DeleteCache(user.Id);
@@ -389,7 +390,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var cacheToken = _cacheAccess.GetCache<TokenCacheModel>(userId.ToUpper());
+                var cacheToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix+ userId.ToUpper());
 
                 if (cacheToken == null)
                 {
@@ -414,7 +415,7 @@ namespace Auth.Api.Repositories
                         SessionExpirationDate = sessionExpirationDate
 
                     };
-                    _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix+user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
                     cacheToken = tokenModel;
                 }
                 else if (cacheToken.SessionExpirationDate < DateTime.UtcNow)
@@ -440,7 +441,7 @@ namespace Auth.Api.Repositories
                         SessionExpirationDate = sessionExpirationDate
 
                     };
-                    _cacheAccess.AddOrUpdateCache(user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
+                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix+user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
                     cacheToken = tokenModel;
                 }
 
@@ -678,7 +679,7 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions()
         {
-            var cacheToken = _cacheAccess.GetCacheV2<TokenCacheModel>().Where(x => x.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.SessionExpirationDate).ToList();
+            var cacheToken = _cacheAccess.GetAllCache<TokenCacheModel>(_cacheAccessPrefix).Where(x => x.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.SessionExpirationDate).ToList();
             var result = new UsersOnlineResponse();
 
             foreach (var item in cacheToken)

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections;
 using System.Runtime.Caching;
 
 namespace Auth.Shared.Utilities
@@ -62,15 +63,19 @@ namespace Auth.Shared.Utilities
 
             return result;
         }
-        public virtual List<T> GetCacheV2<T>()
+        public virtual List<T> GetAllCache<T>(string prefix = "")
         {
             List<T> list = new List<T>();
-            IDictionaryEnumerator cacheEnumerator = (IDictionaryEnumerator)((IEnumerable)MemoryCache.Default).GetEnumerator();
 
-            while (cacheEnumerator.MoveNext())
-                list.Add((T)cacheEnumerator.Value);
+            var cached = MemoryCache.Default.Where(x => x.Key.StartsWith(prefix));
 
-            return list;
+            var result = new List<T>();
+
+            foreach (var item in cached)
+            {
+                result.Add((T)item.Value);
+            }
+            return result;
         }
 
         public void DeleteCache(string key)

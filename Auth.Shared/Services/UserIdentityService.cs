@@ -1193,35 +1193,6 @@ namespace Auth.Api.Services
             }
         }
 
-        public async Task<BaseResponse<UsersOnlineResponse>> GetUsersOnline()
-        {
-
-            try
-            {
-                var response = new BaseResponse<UsersOnlineResponse>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new UsersOnlineResponse
-                    {
-                        OnlineUsers = new List<long>()
-                    }
-                };
-
-                //TODO: Apply Get Users Online Logic
-
-                return response;
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<UsersOnlineResponse>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
-
         public void Dispose()
         {
             _roleManager.Dispose();

@@ -15,6 +15,6 @@ namespace Auth.Shared.Utilities
 
         KeyValuePair<bool, long> GetCache(string key);
         void DeleteCache(string key);
-        List<T> GetCacheV2<T>();
+        List<T> GetAllCache<T>(string prefix = "");
     }
 }
