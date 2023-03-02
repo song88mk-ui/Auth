@@ -68,6 +68,46 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+        [HttpPost("modify/{userId}")]
+        public async Task<IActionResult> Update([FromRoute] string userid, [FromQuery] UserModifyRequest request)
+        {
+            try
+            {
+                var userRequest = new UserRegisterRequest()
+                {
+                    UserId = userid,
+                    UserIdRef = 0,
+                    UserName = "-.-",
+                    Email = "-.-",
+                    Password = "-.-",
+                    NickName = null,
+                    Status = request.IsLock != null ? ((bool)request.IsLock ? "Normal": "Locked") : "-.-",
+                    MainUserId = "-.-",
+                    AppId = 0,
+                    AppName = "-.-",
+                    RoleId = "-.-",
+                    RoleName = "-.-",
+                    Claims = new List<ClaimModel>(),
+                    CreatedDate = DateTime.MinValue
+                };
+
+                var result = await _userIdentityService.UpdateAspNetUsers(userRequest);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
 
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetCurrentUser(string userId)
@@ -93,7 +133,7 @@ namespace Auth.Api.Controllers
         }
 
         [HttpPost("nickname/{userId}")]
-        public async Task<IActionResult> SetNickname(string userId,[FromBody] string nickname)
+        public async Task<IActionResult> SetNickname(string userId, [FromBody] string nickname)
         {
             try
             {
@@ -119,7 +159,7 @@ namespace Auth.Api.Controllers
         public async Task<IActionResult> GetUser([FromQuery] string id)
         {
             try
-            { 
+            {
                 var result = await _userIdentityService.GetCurrentUser(id);
 
                 switch (result.StatusCode)

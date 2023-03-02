@@ -1,5 +1,4 @@
 ﻿using Auth.Shared.Data.Auth;
-using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
@@ -8,6 +7,7 @@ using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Security.Claims;
 using System.Transactions;
 
@@ -534,13 +534,19 @@ namespace Auth.Api.Services
         {
             try
             {
-                var userId = request.UserId;
+                var userId = GetUserId(request.UserId);
 
-                if (string.IsNullOrWhiteSpace(request.UserId))
-                {
-                    userId = _authContext.AspNetUsers.Where(x => x.IdRef == request.UserIdRef).FirstOrDefault().Id.ToString();
-                }
                 var user = (await _userManager.FindByIdAsync(userId));
+
+                if (user == null)
+                {
+                    return new BaseResponse<bool>()
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = "User does not exist",
+                        Result = false
+                    };
+                }
 
                 if (!isDefault)
                 {
@@ -1231,9 +1237,18 @@ namespace Auth.Api.Services
             {
                 var appUser = _authContext.AspNetUsers.FirstOrDefault(x => x.IdRef == idRef);
 
-                id = appUser == null ? id : appUser.Id;
+                id = appUser == null || idRef == 0 ? id : appUser.Id;
             }
             return id;
+        }
+        private T ValidateReques<T>(T request)
+        {
+            if (typeof(T) == typeof(string))
+            {
+                var newT1 = "some text";
+            }
+
+            return (T)Convert.ChangeType("st", typeof(string));
         }
         private List<AppUser> GetUserList(string selection, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
         {

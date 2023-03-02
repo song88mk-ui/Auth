@@ -465,7 +465,7 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<OperatorBaseResponse<object>> AuthenticateOperator(string token)
+        public async Task<OperatorBaseResponse<object>> AuthenticateOperator(string token, bool isAgent)
         {
             try
             {
@@ -490,16 +490,18 @@ namespace Auth.Api.Repositories
                 }
 
                 var user = await _userManager.FindByIdAsync(userToken.UserId);
+                object result = new { UserId = userToken.UserId };
+
+                if (isAgent)
+                {
+                    result = new { IdRef = user.IdRef };
+                }
 
                 return new OperatorBaseResponse<object>
                 {
                     StatusCode = (int)StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = new
-                    {
-                        UserId = userToken.UserId,
-                        IdRef = user.IdRef
-                    }
+                    Result = result
                 };
             }
             catch (Exception ex)

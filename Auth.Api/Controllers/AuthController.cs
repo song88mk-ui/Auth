@@ -111,6 +111,14 @@ namespace Auth.Api.Controllers
         {
             try
             {
+                var agentHeaderRequest = HttpContext.Request.Headers["x-is-agent"].FirstOrDefault();
+
+                var isAgent = false;
+                if(agentHeaderRequest != null)
+                {
+                    isAgent = true;
+                }
+
                 var result = new OperatorBaseResponse<object>()
                 {
                     StatusCode = (int)AuthStatusCode.Unauthorized,
@@ -121,7 +129,7 @@ namespace Auth.Api.Controllers
                 var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
                 if (token != null)
                 {
-                    result = await this._authRepository.AuthenticateOperator(token);
+                    result = await this._authRepository.AuthenticateOperator(token, isAgent);
                 }
 
                 switch (result.StatusCode)

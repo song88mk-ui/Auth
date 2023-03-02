@@ -8,7 +8,7 @@ namespace Auth.Api.Repositories
         Task<BaseResponse<TokenModel>> Login(LoginModel content);
         Task<BaseResponse<bool>> Logout(string token);
         Task<BaseResponse<TokenModel>> Authenticate(string token);
-        Task<OperatorBaseResponse<object>> AuthenticateOperator(string token);
+        Task<OperatorBaseResponse<object>> AuthenticateOperator(string token, bool isAgent);
         Task<BaseResponse<TokenModel>> AuthenticateSecurityCode(AuthenticateSecurityCodeRequest request);
         Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly, int version);
         Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, string search, MetaData metaData);
