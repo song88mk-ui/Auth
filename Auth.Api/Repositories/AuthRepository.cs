@@ -678,7 +678,7 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions()
         {
-            var cacheToken = _cacheAccess.GetCache<TokenCacheModel>().Where(x => x.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.SessionExpirationDate).ToList();
+            var cacheToken = _cacheAccess.GetCacheV2<TokenCacheModel>().Where(x => x.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.SessionExpirationDate).ToList();
             var result = new UsersOnlineResponse();
 
             foreach (var item in cacheToken)

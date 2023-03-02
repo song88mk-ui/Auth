@@ -1,4 +1,6 @@
-﻿namespace Auth.Shared.Utilities
+﻿using System.Collections;
+
+namespace Auth.Shared.Utilities
 {
     public interface IMemCache
     {
@@ -13,5 +15,6 @@
 
         KeyValuePair<bool, long> GetCache(string key);
         void DeleteCache(string key);
+        List<T> GetCacheV2<T>();
     }
 }

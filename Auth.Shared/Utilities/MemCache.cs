@@ -1,4 +1,5 @@
-﻿using System.Runtime.Caching;
+﻿using System.Collections;
+using System.Runtime.Caching;
 
 namespace Auth.Shared.Utilities
 {
@@ -60,6 +61,16 @@ namespace Auth.Shared.Utilities
             var result = (T)MemoryCache.Default.Get(key);
 
             return result;
+        }
+        public virtual List<T> GetCacheV2<T>()
+        {
+            List<T> list = new List<T>();
+            IDictionaryEnumerator cacheEnumerator = (IDictionaryEnumerator)((IEnumerable)MemoryCache.Default).GetEnumerator();
+
+            while (cacheEnumerator.MoveNext())
+                list.Add((T)cacheEnumerator.Value);
+
+            return list;
         }
 
         public void DeleteCache(string key)
