@@ -92,7 +92,7 @@ namespace Auth.Api.Controllers
         /// <remarks>
         /// </remarks>
         /// <return></return>
-        /// <response code="200">Valid operator token
+        /// <response code="200">Valid operator tokena
         /// <para>Result = 1000 - Success</para></response>
         /// <response code="400">Bad Request
         /// <para>Result = 1001 - Bad Request</para></response>

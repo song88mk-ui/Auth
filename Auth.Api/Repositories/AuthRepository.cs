@@ -132,6 +132,10 @@ namespace Auth.Api.Repositories
                 foreach (var item in userClaims)
                 {
                     var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
+
+                    if (userPermission.CategoryId == 0)
+                        continue;
+
                     if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
                     {
                         token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
@@ -589,13 +593,10 @@ namespace Auth.Api.Repositories
             // 0 = all backoffice version
             // 1 = backoffice version 1
             // 2 = backoffice version 2
-            var versions = new List<int>() { 0, 1 };
+            var versions = new List<int>() { 0, 1 , 2};
             if (version > 0)
             {
                 versions = new List<int>() { version };
-            }
-            else
-            {
             }
 
             var query = _authContext.Permission.Where(c => (isSubUserOnly == false || c.IsSubUser == isSubUserOnly) && versions.Contains(c.Version));
