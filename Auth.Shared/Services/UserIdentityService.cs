@@ -560,8 +560,11 @@ namespace Auth.Api.Services
 
                 if (!isDefault)
                 {
-                    user.Email = request.Email;
-                    user.EmailConfirmed = true;
+                    if (!string.IsNullOrWhiteSpace(request.Email))
+                    {
+                        user.Email = request.Email;
+                        user.EmailConfirmed = true;
+                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(request.Status))
@@ -577,7 +580,7 @@ namespace Auth.Api.Services
 
                 if (!string.IsNullOrWhiteSpace(request.Password))
                 {
-                    user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
+                    //user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
                 }
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
@@ -619,9 +622,23 @@ namespace Auth.Api.Services
 
                 if (!string.IsNullOrEmpty(request.Password))
                 {
-                    user.PasswordHash = request.Password;
+                    //user.PasswordHash = request.Password;
 
-                    await ChangePasswordAspNetUsers(user);
+                    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                    result = await _userManager.ResetPasswordAsync(user, token, request.Password);
+                }
+
+                if (!result.Succeeded)
+                {
+                    string errorMsg = "";
+                    foreach (IdentityError error in result.Errors)
+                        errorMsg += error.Description.ToString() + ",";
+
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = $"{errorMsg.TrimEnd(',')} "
+                    };
                 }
 
                 return new BaseResponse<bool>
@@ -676,70 +693,6 @@ namespace Auth.Api.Services
                 {
                     claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                     await _userManager.AddClaimsAsync(user, claims);
-                }
-
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = true
-                };
-
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
-
-        public async Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request)
-        {
-            try
-            {
-                var user = _userManager.FindByIdAsync(request.Id).Result;
-
-                if (request.PasswordHash != null)
-                {
-                    var passwordValidator = new PasswordValidator<AppUser>();
-                    var isValid = await passwordValidator.ValidateAsync(_userManager, null, request.PasswordHash);
-
-                    if (isValid.Succeeded)
-                    {
-                        user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.PasswordHash);
-                    }
-                    else
-                    {
-                        var errorMsg = string.Empty;
-
-                        foreach (var error in isValid.Errors)
-                        {
-                            errorMsg += $"{error.Description},";
-                        }
-
-                        return new BaseResponse<bool>
-                        {
-                            StatusCode = StatusCode.Error,
-                            Message = $"{errorMsg.TrimEnd(',')}"
-                        };
-                    }
-                }
-
-                IdentityResult result = await _userManager.UpdateAsync(user);
-                if (!result.Succeeded)
-                {
-                    string errorMsg = "";
-                    foreach (IdentityError error in result.Errors)
-                        errorMsg += error.Description.ToString() + ",";
-
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"{errorMsg.TrimEnd(',')} "
-                    };
                 }
 
                 return new BaseResponse<bool>
@@ -1013,62 +966,6 @@ namespace Auth.Api.Services
             catch (Exception ex)
             {
                 return new BaseResponse<UserResponse>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
-        public async Task<BaseResponse<bool>> ChangePassword(string userId, string currentPassword, string newPassword)
-        {
-            try
-            {
-                var user = await _userManager.FindByIdAsync(GetUserId(userId));
-
-                if (user == null)
-                {
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"User does not exist.",
-                        Result = false
-                    };
-                }
-
-                var result = new IdentityResult();
-                if (string.IsNullOrWhiteSpace(currentPassword))
-                {
-                    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                    result = await _userManager.ResetPasswordAsync(user, token, newPassword);
-                }
-                else
-                {
-                    result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
-                }
-
-                if (!result.Succeeded)
-                {
-                    string errorMsg = "";
-                    foreach (IdentityError error in result.Errors)
-                        errorMsg += error.Description.ToString() + ",";
-
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"{errorMsg.TrimEnd(',')} "
-                    };
-                }
-
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = true
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"

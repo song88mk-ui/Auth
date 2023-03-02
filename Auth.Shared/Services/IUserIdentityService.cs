@@ -12,7 +12,6 @@ namespace Auth.Api.Services
         Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request);
         Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false);
         Task<BaseResponse<bool>> UpdateAspNetUserRole(UserRegisterRequest request);
-        Task<BaseResponse<bool>> ChangePasswordAspNetUsers(AppUser request);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
@@ -30,7 +29,6 @@ namespace Auth.Api.Services
         Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user);
         Task<RoleModel> GetAspNetRoleByName(string name);
         Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
-        Task<BaseResponse<bool>> ChangePassword(string userId, string currentPassword, string newPassword);
         Task<BaseResponse<bool>> SetNickname(string userId, string nickname);
         Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request);
     }

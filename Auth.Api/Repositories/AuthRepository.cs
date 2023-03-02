@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -91,57 +92,60 @@ namespace Auth.Api.Repositories
             var userClaims = new List<ClaimModel>();
 
             var permissions = new List<PermissionModel>();
-            if (role.Name.ToLower() == "super admin")
+            if (role != null)
             {
-                permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
+                if (role.Name.ToLower() == "super admin")
+                {
+                    permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
 
-                userClaims = permissions.Select(p => new ClaimModel
-                {
-                    ClaimType = p.Id,
-                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
-                }).ToList();
-                if (userClaims.Any())
-                {
-                    permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
-                }
-            }
-            else
-            {
-                permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
-                if (isSubUser)
-                {
-                    userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
-                        .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
+                    userClaims = permissions.Select(p => new ClaimModel
+                    {
+                        ClaimType = p.Id,
+                        ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
+                    }).ToList();
+                    if (userClaims.Any())
+                    {
+                        permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
+                    }
                 }
                 else
                 {
-                    userClaims = _authContext.AspNetRoleClaims
-                        .Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId, (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
-                        .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
-                        .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
+                    permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
+                    if (isSubUser)
+                    {
+                        userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
+                            .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
+                    }
+                    else
+                    {
+                        userClaims = _authContext.AspNetRoleClaims
+                            .Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId, (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                            .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
+                            .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
+                    }
+                    if (userClaims.Any())
+                    {
+                        permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
+                    }
                 }
-                if (userClaims.Any())
-                {
-                    permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
-                }
-            }
 
-            foreach (var item in userClaims)
-            {
-                var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
-                if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
+                foreach (var item in userClaims)
                 {
-                    token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
+                    var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
+                    if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
+                    {
+                        token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
+                    }
+                    else
+                    {
+                        token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
+                    }
                 }
-                else
-                {
-                    token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
-                }
-            }
 
-            token.Subject.AddClaim(new Claim("Permission", role.Id.ToString()));
-            token.Subject.AddClaim(new Claim("RoleId", role.Id.ToString()));
-            token.Subject.AddClaim(new Claim("RoleName", role.Name.ToString()));
+                token.Subject.AddClaim(new Claim("Permission", role.Id.ToString()));
+                token.Subject.AddClaim(new Claim("RoleId", role.Id.ToString()));
+                token.Subject.AddClaim(new Claim("RoleName", role.Name.ToString()));
+            }
 
             return token;
         }
@@ -582,16 +586,25 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly, int version)
         {
-            var query = _authContext.Permission.Where(c => isSubUserOnly == false || c.IsSubUser == isSubUserOnly);
-
             // 0 = all backoffice version
             // 1 = backoffice version 1
             // 2 = backoffice version 2
+            var versions = new List<int>() { 0, 1 };
             if (version > 0)
             {
-                var versions = new int[] { 0, 1 };
-                query = query.Where(c => versions.Contains(c.Version));
+                versions = new List<int>() { version };
             }
+            else
+            {
+            }
+
+            var query = _authContext.Permission.Where(c => (isSubUserOnly == false || c.IsSubUser == isSubUserOnly) && versions.Contains(c.Version));
+
+            //if (version > 0)
+            //{
+            //    var versions = new int[] { 0, 1 };
+            //    query = query.Where(c => versions.Contains(c.Version));
+            //}
 
             var result = query.ToList();
 

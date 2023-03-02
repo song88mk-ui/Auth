@@ -5,6 +5,7 @@ using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
@@ -205,6 +206,12 @@ namespace Auth.Api.Controllers
         {
             try
             {
+                var tempVersion = 0;
+                if(HttpContext.Request.Headers.ContainsKey("api-verion"))
+                {
+                    int.TryParse(HttpContext.Request.Headers["api-verion"].ToString(), out tempVersion);
+                }
+
                 var result = await _authRepository.GetPermissionList(isSubUserOnly, version);
 
                 switch (result.StatusCode)
