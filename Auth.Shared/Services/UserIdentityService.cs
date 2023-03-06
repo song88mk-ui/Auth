@@ -497,7 +497,6 @@ namespace Auth.Api.Services
                         string errorMsg = "";
                         foreach (IdentityError error in result.Errors)
                             errorMsg += error.Description.ToString() + ",";
-
                         return new BaseResponse<long>
                         {
                             StatusCode = StatusCode.Error,
@@ -505,13 +504,9 @@ namespace Auth.Api.Services
                         };
                     }
 
-                    if (string.IsNullOrWhiteSpace(request.RoleId))
-                    {
-                        request.RoleName = "Default";
-                    }
-                        var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
                     if (user.MainUserId != null)
+                    {
                         if (!string.IsNullOrWhiteSpace(user.MainUserId))
                         {
                             var claims = new List<Claim>();
@@ -521,6 +516,16 @@ namespace Auth.Api.Services
                                 await _userManager.AddClaimsAsync(user, claims);
                             }
                         }
+                    }
+                    else
+                    {
+                        if (string.IsNullOrWhiteSpace(request.RoleId))
+                        {
+                            request.RoleName = "Default";
+                        }
+                        var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+                    }
+
 
                     scope.Complete();
                 }
@@ -577,11 +582,6 @@ namespace Auth.Api.Services
 
                 if (!string.IsNullOrWhiteSpace(request.NickName))
                     user.NickName = request.NickName;
-
-                if (!string.IsNullOrWhiteSpace(request.Password))
-                {
-                    //user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
-                }
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
 
