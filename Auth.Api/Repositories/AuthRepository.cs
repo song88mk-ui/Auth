@@ -133,8 +133,8 @@ namespace Auth.Api.Repositories
                 {
                     var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
 
-                    if (userPermission.CategoryId == 0)
-                        continue;
+                    //if (userPermission.CategoryId == 0)
+                    //    continue;
 
                     if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
                     {
