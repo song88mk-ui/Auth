@@ -158,7 +158,7 @@ namespace Auth.Api.Repositories
             if (loginModel == null)
                 loginModel = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
                 {
-                    Name = x.Name,
+                    Username = x.Name,
                     Provider = x.LoginProvider
                 }).FirstOrDefault();
 
@@ -174,7 +174,7 @@ namespace Auth.Api.Repositories
                 {
                     UserId = user.Id,
                     LoginProvider = loginModel.Provider,
-                    Name = loginModel.Name,
+                    Name = loginModel.Username,
                     Value = token,
                     OperatorToken = operatorToken,
                     SessionExpirationDate = sessionExpirationDate
@@ -215,7 +215,7 @@ namespace Auth.Api.Repositories
             {
                 // if main user get from role claims
                 // if sub user get from user claims
-                var user = await _userManager.FindByNameAsync(content.Name);
+                var user = await _userManager.FindByNameAsync(content.Username);
 
                 if (user == null)
                 {
@@ -261,7 +261,7 @@ namespace Auth.Api.Repositories
 
                 var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                var token = GenerateToken(user.Id, role, content.Provider, content.Name, user.MainUserId, user.IdRef);
+                var token = GenerateToken(user.Id, role, content.Provider, content.Username, user.MainUserId, user.IdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 

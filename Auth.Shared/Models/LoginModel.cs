@@ -9,7 +9,7 @@ namespace Auth.Shared.Models
 {
     public class LoginModel
     {
-        public string Name { get; set; }
+        public string Username { get; set; }
         public string Password { get; set; }
         public string Provider { get; set; }
         public string BrowserInfo { get; set; } = "";

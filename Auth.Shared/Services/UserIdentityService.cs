@@ -507,7 +507,7 @@ namespace Auth.Api.Services
 
                     if (user.MainUserId != null)
                     {
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId) && user.MainUserId != "0")
                         {
                             var claims = new List<Claim>();
                             if (request.Claims != null && request.Claims.Any())
