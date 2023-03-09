@@ -183,7 +183,7 @@ namespace Auth.Api.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -194,7 +194,13 @@ namespace Auth.Api.Controllers
                     StatusCode = AuthStatusCode.Unauthorized,
                     Message = "Missing authorization"
                 };
-                if (HttpContext.Request.Headers.ContainsKey("Authorization"))
+
+                if(HttpContext.Request.Headers.ContainsKey("x-operator-token"))
+                {
+                    var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
+                    result = await this._authRepository.Logout(token, true);
+                }
+                else if (HttpContext.Request.Headers.ContainsKey("Authorization"))
                 {
                     var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
                     result = await this._authRepository.Logout(token);

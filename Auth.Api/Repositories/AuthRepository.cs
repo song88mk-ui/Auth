@@ -289,7 +289,7 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<BaseResponse<bool>> Logout(string token)
+        public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
             if (string.IsNullOrWhiteSpace(token))
             {
@@ -301,7 +301,7 @@ namespace Auth.Api.Repositories
                 };
             }
 
-            var tokenEntity = _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+            var tokenEntity = isOperator ? _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault() :  _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
             if (tokenEntity == null)
             {
                 return new BaseResponse<bool>
@@ -311,28 +311,15 @@ namespace Auth.Api.Repositories
                     Result = false
                 };
             }
-            var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
-            var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-            var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
-            var userEntity = _authContext.AspNetUsers.Where(x => x.Id == tokenEntity.UserId).FirstOrDefault();
 
-            if (userEntity == null)
-            {
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Unauthorized,
-                    Message = "Invalid Token.",
-                    Result = false
-                };
-            }
-
-            var user = await _userManager.FindByNameAsync(userEntity.UserName);
-            _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == token && x.UserId == user.Id).FirstOrDefault());
+            var accessToken = tokenEntity.Value;
+            var userId = tokenEntity.UserId;
+            _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
             _authContext.SaveChangesAsync();
-            var operatorToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix + user.Id);
+            var operatorToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix + userId);
             if (operatorToken != null)
             {
-                _cacheAccess.DeleteCache(user.Id);
+                _cacheAccess.DeleteCache(userId);
             }
 
             return new BaseResponse<bool>
@@ -474,7 +461,7 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<OperatorBaseResponse<object>> AuthenticateOperator(string token, bool isAgent)
+        public async Task<OperatorBaseResponse<object>> AuthenticateOperator(string token, bool isAgent = false)
         {
             try
             {
