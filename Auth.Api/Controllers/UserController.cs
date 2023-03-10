@@ -110,6 +110,22 @@ namespace Auth.Api.Controllers
             }
         }
 
+        [HttpPatch("account/unlock/{userId}")]
+        public async Task<IActionResult> UnlockAccount(long userId, [FromQuery(Name = "is-unlocked")] bool isUnlocked)
+        {            
+            var result = isUnlocked ? await _userIdentityService.UnlockAccount(userId) : await _userIdentityService.LockAccount(userId);
+
+            switch (result.StatusCode)
+            {
+                case AuthStatusCode.Success:
+                    return Ok(result);
+                case AuthStatusCode.Unauthorized:
+                    return Unauthorized(result);
+                default:
+                    return BadRequest(result);
+            }
+        }
+
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetCurrentUser(string userId)
         {
