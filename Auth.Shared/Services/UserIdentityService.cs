@@ -505,9 +505,9 @@ namespace Auth.Api.Services
                     }
 
 
-                    if (user.MainUserId != null && user.MainUserId != string.Empty)
+                    if (user.MainUserId != null && user.MainUserId != string.Empty && user.MainUserId != "0")
                     {
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId) && user.MainUserId != "0")
+                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
                         {
                             var claims = new List<Claim>();
                             if (request.Claims != null && request.Claims.Any())
@@ -525,7 +525,6 @@ namespace Auth.Api.Services
                         }
                         var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
                     }
-
 
                     scope.Complete();
                 }
