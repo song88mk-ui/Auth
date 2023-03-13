@@ -505,7 +505,7 @@ namespace Auth.Api.Services
                     }
 
 
-                    if (user.MainUserId != null)
+                    if (user.MainUserId != null && user.MainUserId != string.Empty)
                     {
                         if (!string.IsNullOrWhiteSpace(user.MainUserId) && user.MainUserId != "0")
                         {
