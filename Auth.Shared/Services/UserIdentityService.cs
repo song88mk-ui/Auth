@@ -712,6 +712,100 @@ namespace Auth.Api.Services
                 };
             }
         }
+
+        public async Task<BaseResponse<bool?>> UnlockAccount(long userId)
+        {
+            var userIdStr = GetUserId(userId.ToString());
+
+            var user = (await _userManager.FindByIdAsync(userIdStr));
+
+            if (user == null)
+            {
+                return new BaseResponse<bool?>()
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = "User does not exist",
+                    Result = false
+                };
+            }
+
+            if (user.LockoutEnd is null)
+            {
+                return new BaseResponse<bool?>()
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = "User account is already locked",
+                    Result = null
+                };
+            }
+
+            user.LockoutEnd = null;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return new BaseResponse<bool?>()
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"Cannot unlock user account",
+                    Result = false
+                };
+            }
+
+            return new BaseResponse<bool?>
+            {
+                StatusCode = StatusCode.Success,
+                Message = "User account is unlocked",
+                Result = true
+            };
+        }
+
+        public async Task<BaseResponse<bool?>> LockAccount(long userId)
+        {
+            var userIdStr = GetUserId(userId.ToString());
+
+            var user = (await _userManager.FindByIdAsync(userIdStr));
+
+            if (user == null)
+            {
+                return new BaseResponse<bool?>()
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = "User does not exist",
+                    Result = false
+                };
+            }
+
+            if (user.LockoutEnd is DateTimeOffset)
+            {
+                return new BaseResponse<bool?>()
+                {
+                    StatusCode = StatusCode.Success,
+                    Message = $"User account is already locked out until {user.LockoutEnd}",
+                    Result = null
+                };
+            }
+            
+            user.LockoutEnd = DateTimeOffset.UtcNow.AddDays(1);
+            var result = await _userManager.UpdateAsync(user);            
+            if (!result.Succeeded)
+            {
+                return new BaseResponse<bool?>()
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"Cannot unlock user account",
+                    Result = false
+                };
+            }
+
+            return new BaseResponse<bool?>
+            {
+                StatusCode = StatusCode.Success,
+                Message = "User account is locked",
+                Result = true
+            };
+        }
+
         public async Task<BaseResponse<UserGroupResponse>> AddOrUpdateAspNetRoles(UserGroupRequest request)
         {
             try

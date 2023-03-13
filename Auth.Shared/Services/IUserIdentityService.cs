@@ -12,6 +12,8 @@ namespace Auth.Api.Services
         Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request);
         Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false);
         Task<BaseResponse<bool>> UpdateAspNetUserRole(UserRegisterRequest request);
+        Task<BaseResponse<bool?>> UnlockAccount(long userId);
+        Task<BaseResponse<bool?>> LockAccount(long userId);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
