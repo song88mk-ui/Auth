@@ -3,6 +3,7 @@ using Auth.Api.Repositories;
 using Auth.Api.Services;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
+using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -112,7 +113,7 @@ namespace Auth.Api.Controllers
 
         [HttpPatch("account/unlock/{userId}")]
         public async Task<IActionResult> UnlockAccount(long userId, [FromQuery(Name = "is-unlocked")] bool isUnlocked)
-        {            
+        {
             var result = isUnlocked ? await _userIdentityService.UnlockAccount(userId) : await _userIdentityService.LockAccount(userId);
 
             switch (result.StatusCode)
@@ -218,17 +219,21 @@ namespace Auth.Api.Controllers
         }
 
         [HttpGet("permission/list")]
-        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly)
+        public async Task<IActionResult> GetPermissionList([FromQuery] bool isSubUserOnly, [FromQuery] string? categories = "")
         {
             try
             {
                 var version = 0;
-                if(HttpContext.Request.Headers.ContainsKey("x-verion"))
+                if (HttpContext.Request.Headers.ContainsKey("x-verion"))
                 {
                     int.TryParse(HttpContext.Request.Headers["x-verion"].ToString(), out version);
                 }
 
-                var result = await _authRepository.GetPermissionList(isSubUserOnly, version);
+                var result = new BaseResponse<PermissionResponse>();
+                if (!string.IsNullOrWhiteSpace(categories))
+                    result = await _authRepository.GetPermissionList(isSubUserOnly, version, categories);
+                else
+                    result = await _authRepository.GetPermissionList(isSubUserOnly, version);
 
                 switch (result.StatusCode)
                 {

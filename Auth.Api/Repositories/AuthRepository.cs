@@ -575,7 +575,7 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly, int version)
+        public async Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly, int version, string categories = "0,1,2")
         {
             // 0 = all backoffice version
             // 1 = backoffice version 1
@@ -586,7 +586,8 @@ namespace Auth.Api.Repositories
                 versions = new List<int>() { version };
             }
 
-            var query = _authContext.Permission.Where(c => c.IsSubUser == isSubUserOnly && versions.Contains(c.Version));
+            var categoryIds = categories.Split(',');
+            var query = _authContext.Permission.Where(c => c.IsSubUser == isSubUserOnly && versions.Contains(c.Version) && categoryIds.Contains(c.CategoryId.ToString()));
 
             //if (version > 0)
             //{
