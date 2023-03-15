@@ -586,7 +586,7 @@ namespace Auth.Api.Repositories
                 versions = new List<int>() { version };
             }
 
-            var query = _authContext.Permission.Where(c => (isSubUserOnly == false || c.IsSubUser == isSubUserOnly) && versions.Contains(c.Version));
+            var query = _authContext.Permission.Where(c => c.IsSubUser == isSubUserOnly && versions.Contains(c.Version));
 
             //if (version > 0)
             //{
