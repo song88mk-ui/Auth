@@ -1,4 +1,4 @@
-name: $(System.TeamProject)-Auth-API-$(Build.BuildId).$(Rev:r)
+name: $(System.TeamProject)-Auth-API-$(Build.BuildId)
 
 pr: none
 
