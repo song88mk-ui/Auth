@@ -632,6 +632,9 @@ namespace Auth.Api.Repositories
             try
             {
                 var result = new ActivityLogResponse();
+
+                userId = GetUserId(userId);
+
                 var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).Select(x => new ActivityLogModel
                 {
                     UserId = x.UserId,
@@ -703,6 +706,19 @@ namespace Auth.Api.Repositories
             };
         }
 
+        #endregion
+
+        #region Utilities
+        private string GetUserId(string id)
+        {
+            if (long.TryParse(id, out long idRef))
+            {
+                var appUser = _authContext.AspNetUsers.FirstOrDefault(x => x.IdRef == idRef);
+
+                id = appUser == null || idRef == 0 ? id : appUser.Id;
+            }
+            return id;
+        }
         #endregion
     }
 }
