@@ -201,7 +201,8 @@ namespace Auth.Api.Services
                         UserGroupId = role.Id,
                         UserGroupIdRef = role.UserGroupIdRef,
                         UserGroupName = role.Name,
-                        Claims = claims ?? new List<ClaimModel>()
+                        Claims = claims ?? new List<ClaimModel>(),
+                        UserCount = userCount
                     });
                 }
 
