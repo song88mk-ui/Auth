@@ -221,7 +221,7 @@ namespace Auth.Api.Repositories
                 {
                     return new BaseResponse<TokenModel>
                     {
-                        StatusCode = StatusCode.Unauthorized,
+                        StatusCode = StatusCode.Username_Not_Found,
                         Message = "Sorry, we couldn’t find an account with that username. Please try again.",
                         Result = null
                     };
@@ -251,7 +251,7 @@ namespace Auth.Api.Repositories
                 {
                     return new BaseResponse<TokenModel>
                     {
-                        StatusCode = StatusCode.Unauthorized,
+                        StatusCode = StatusCode.Invalid_Password,
                         Message = "Invalid Password. Please try again.",
                         Result = null
                     };
