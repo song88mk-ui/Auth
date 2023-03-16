@@ -10,6 +10,7 @@ using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;
@@ -94,9 +95,10 @@ namespace Auth.Api.Repositories
             var permissions = new List<PermissionModel>();
             if (role != null)
             {
+                permissions = (await GetPermissionList(isSubUser, 0)).Result.Permissions ?? new List<PermissionModel>();
+
                 if (role.Name.ToLower() == "super admin")
                 {
-                    permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
 
                     userClaims = permissions.Select(p => new ClaimModel
                     {
@@ -110,9 +112,13 @@ namespace Auth.Api.Repositories
                 }
                 else
                 {
-                    permissions = (await GetPermissionList(false, 0)).Result.Permissions ?? new List<PermissionModel>();
                     if (isSubUser)
                     {
+                        if (provider == ((int)Application.AgentManagementSystem).ToString())
+                        {
+                            permissions = (await GetPermissionList(isSubUser, 0, "10")).Result.Permissions ?? new List<PermissionModel>();
+                        }
+
                         userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
                             .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
                     }
@@ -587,13 +593,10 @@ namespace Auth.Api.Repositories
             }
 
             var categoryIds = categories.Split(',');
-            var query = _authContext.Permission.Where(c => c.IsSubUser == isSubUserOnly && versions.Contains(c.Version) && categoryIds.Contains(c.CategoryId.ToString()));
+            var query = _authContext.Permission.Where(c => versions.Contains(c.Version) && categoryIds.Contains(c.CategoryId.ToString()));
 
-            //if (version > 0)
-            //{
-            //    var versions = new int[] { 0, 1 };
-            //    query = query.Where(c => versions.Contains(c.Version));
-            //}
+            if (isSubUserOnly)
+                query = query.Where(c => c.IsSubUser == isSubUserOnly);
 
             var result = query.ToList();
 
