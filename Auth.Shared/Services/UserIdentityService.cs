@@ -320,7 +320,7 @@ namespace Auth.Api.Services
                     var userGroups = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
                                      userRole => userRole.RoleId,
                                      role => role.Id,
-                                     (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName }).ToList();
+                                     (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName, role.UserGroupIdRef }).ToList();
 
                     result.Users = users.Join(userGroups,
                                user => user.Id,
@@ -341,8 +341,12 @@ namespace Auth.Api.Services
                                    RoleId = userGroups.Id,
                                    RoleName = userGroups.Name,
                                }).ToList();
+
                     if (!string.IsNullOrWhiteSpace(request.UserGroupId))
-                        result.Users = result.Users.Where(x => x.RoleId == request.UserGroupId).ToList();
+                    {
+                        var roleId = GetRoleId(request.UserGroupId);
+                        result.Users = result.Users.Where(x => x.RoleId == roleId).ToList();
+                    }
 
                     var rowCount = result.Users.Count();
                     if (request.MetaData.PageSize == 0)
@@ -1183,6 +1187,7 @@ namespace Auth.Api.Services
         #endregion
 
         #region Utilities
+
         private string GetUserId(string id)
         {
             if (long.TryParse(id, out long idRef))
@@ -1193,6 +1198,19 @@ namespace Auth.Api.Services
             }
             return id;
         }
+
+        private string GetRoleId(string id)
+        {
+            if (long.TryParse(id, out long userGroupIdRef))
+            {
+                var appRole = _authContext.AspNetRoles.FirstOrDefault(x => x.UserGroupIdRef == userGroupIdRef);
+
+                id = appRole == null || userGroupIdRef == 0 ? id : appRole.Id;
+            }
+
+            return id;
+        }
+
         private T ValidateReques<T>(T request)
         {
             if (typeof(T) == typeof(string))
