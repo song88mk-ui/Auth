@@ -10,5 +10,6 @@
         public long UserGroupIdRef { get; set; }
         public string UserGroupName { get; set; }
         public List<ClaimModel> Claims { get; set; }
+        public int UserCount { get; set; }
     }
 }
