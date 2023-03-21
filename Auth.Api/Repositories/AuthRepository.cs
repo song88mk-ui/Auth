@@ -523,7 +523,6 @@ namespace Auth.Api.Repositories
         {
             try
             {
-
                 var user = await _userManager.Users.FirstOrDefaultAsync(u => u.IdRef == request.IdRef);
 
                 if (user == null)
@@ -546,18 +545,19 @@ namespace Auth.Api.Repositories
                     };
                 }
 
+                var aspNetUserToken = _authContext.AspNetUserTokens.FirstOrDefault(x => x.UserId == user.Id);
+
+                if(aspNetUserToken == null)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "Expired Token.",
+                        Result = null
+                    };
+                }
+
                 //TODO: verify security code
-
-                var accessToken = "";
-
-                var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
-
-                var token = GenerateToken(user.Id, role, Application.AgentManagementSystem.ToString(), user.UserName, user.MainUserId, user.IdRef);
-                var tokenHandler = new JwtSecurityTokenHandler();
-                accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
-
-                var operatorToken = Guid.NewGuid().ToString();
-                await SaveToken(user, accessToken, operatorToken, null);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -565,8 +565,8 @@ namespace Auth.Api.Repositories
                     Message = StatusCode.Success.ToString(),
                     Result = new TokenModel()
                     {
-                        OperatorToken = operatorToken,
-                        AccessToken = accessToken
+                        OperatorToken = aspNetUserToken.OperatorToken,
+                        AccessToken = aspNetUserToken.Value
                     }
                 };
 
