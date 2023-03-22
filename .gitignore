@@ -3,8 +3,7 @@
 ################################################################################
 
 .vs
-Auth.Api/obj
-Auth.Shared/obj
+.vscode
+obj
+bin
 Auth.Api/Auth.Api.csproj.user
-Auth.Shared/bin
-Auth.Api/bin
