@@ -22,7 +22,7 @@ resources:
       name: FlyingCockatoo/BuildTemplates
       endpoint: FlyingCockatoo
       #ref: refs/tags/v0.1.4
-      ref: refs/release/0.3.0
+      ref: refs/heads/release/0.3.0
     - repository: nuget-helper
       type: github
       name: FlyingCockatoo/infra-build-nuget-helper
