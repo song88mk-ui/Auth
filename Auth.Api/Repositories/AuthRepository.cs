@@ -592,7 +592,13 @@ namespace Auth.Api.Repositories
                 versions = new List<int>() { version };
             }
 
-            var categoryIds = categories.Split(',');
+            var categoryIds = categories.Split(',').ToList();
+
+            if(!categoryIds.Contains("0"))
+            {
+                categoryIds.Add("0");
+            }
+
             var query = _authContext.Permission.Where(c => versions.Contains(c.Version) && categoryIds.Contains(c.CategoryId.ToString()));
 
             if (isSubUserOnly)
