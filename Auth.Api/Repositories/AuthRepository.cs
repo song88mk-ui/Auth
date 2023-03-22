@@ -32,7 +32,6 @@ namespace Auth.Api.Repositories
         private readonly IMemCache _cacheAccess;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
-        private string _cacheAccessPrefix = "ut:";
 
         #endregion
 
@@ -211,7 +210,6 @@ namespace Auth.Api.Repositories
                     AccessToken = token,
                     SessionExpirationDate = sessionExpirationDate
                 };
-                _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix + user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
             }
         }
 
@@ -301,20 +299,20 @@ namespace Auth.Api.Repositories
             {
                 return new BaseResponse<bool>
                 {
-                    StatusCode = StatusCode.Unauthorized,
-                    Message = "Empty Token.",
-                    Result = false
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
                 };
             }
 
-            var tokenEntity = isOperator ? _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault() :  _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+            var tokenEntity = isOperator ? _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault() : _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
             if (tokenEntity == null)
             {
                 return new BaseResponse<bool>
                 {
-                    StatusCode = StatusCode.Unauthorized,
-                    Message = "Invalid Token.",
-                    Result = false
+                    StatusCode = StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = true
                 };
             }
 
@@ -322,11 +320,6 @@ namespace Auth.Api.Repositories
             var userId = tokenEntity.UserId;
             _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
             _authContext.SaveChangesAsync();
-            var operatorToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix + userId);
-            if (operatorToken != null)
-            {
-                _cacheAccess.DeleteCache(userId);
-            }
 
             return new BaseResponse<bool>
             {
@@ -391,60 +384,27 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var cacheToken = _cacheAccess.GetCache<TokenCacheModel>(_cacheAccessPrefix + userId.ToUpper());
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
 
-                if (cacheToken == null)
+                if (userToken == null)
                 {
-                    var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
-
-                    if (userToken == null)
+                    return new BaseResponse<TokenModel>
                     {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
-
-                    var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-                    token = userToken.Value;
-                    var tokenModel = new TokenCacheModel()
-                    {
-                        OperatorToken = userToken.OperatorToken ?? "",
-                        AccessToken = token,
-                        SessionExpirationDate = sessionExpirationDate
-
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "Invalid Token.",
+                        Result = null
                     };
-                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix + user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
-                    cacheToken = tokenModel;
                 }
-                else if (cacheToken.SessionExpirationDate < DateTime.UtcNow)
+
+                var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                token = userToken.Value;
+                var tokenModel = new TokenCacheModel()
                 {
-                    var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
+                    OperatorToken = userToken.OperatorToken ?? "",
+                    AccessToken = token,
+                    SessionExpirationDate = sessionExpirationDate
 
-                    if (userToken == null)
-                    {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
-
-                    var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-                    token = userToken.Value;
-                    var tokenModel = new TokenCacheModel()
-                    {
-                        OperatorToken = userToken.OperatorToken ?? "",
-                        AccessToken = token,
-                        SessionExpirationDate = sessionExpirationDate
-
-                    };
-                    _cacheAccess.AddOrUpdateCache(_cacheAccessPrefix + user.Id.ToUpper(), tokenModel, DateTimeOffset.UtcNow.AddMonths(3));
-                    cacheToken = tokenModel;
-                }
+                };
 
                 return new BaseResponse<TokenModel>
                 {
@@ -452,8 +412,8 @@ namespace Auth.Api.Repositories
                     Message = StatusCode.Success.ToString(),
                     Result = new TokenModel()
                     {
-                        OperatorToken = cacheToken.OperatorToken,
-                        AccessToken = token
+                        OperatorToken = tokenModel.OperatorToken,
+                        AccessToken = tokenModel.AccessToken
                     }
                 };
             }
@@ -547,7 +507,7 @@ namespace Auth.Api.Repositories
 
                 var aspNetUserToken = _authContext.AspNetUserTokens.FirstOrDefault(x => x.UserId == user.Id);
 
-                if(aspNetUserToken == null)
+                if (aspNetUserToken == null)
                 {
                     return new BaseResponse<TokenModel>
                     {
@@ -586,7 +546,7 @@ namespace Auth.Api.Repositories
             // 0 = all backoffice version
             // 1 = backoffice version 1
             // 2 = backoffice version 2
-            var versions = new List<int>() { 0, 1 , 2};
+            var versions = new List<int>() { 0, 1, 2 };
             if (version > 0)
             {
                 versions = new List<int>() { version };
@@ -691,12 +651,16 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions()
         {
-            var cacheToken = _cacheAccess.GetAllCache<TokenCacheModel>(_cacheAccessPrefix).Where(x => x.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.SessionExpirationDate).ToList();
+            var user = _authContext.AspNetUsers.
+                Join(_authContext.AspNetUserTokens, users => users.Id, tokens => tokens.UserId, (users, tokens) => new { Users = users, Tokens = tokens})
+                .Where(x => x.Tokens.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.Tokens.SessionExpirationDate)
+                .Select(x => x.Users.IdRef).ToList();
+
             var result = new UsersOnlineResponse();
 
-            foreach (var item in cacheToken)
+            foreach (var item in user)
             {
-                result.OnlineUsers.Add(item.UserIdRef);
+                result.OnlineUsers.Add(item);
             }
 
             return new BaseResponse<UsersOnlineResponse>()
