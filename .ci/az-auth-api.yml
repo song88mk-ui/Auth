@@ -21,8 +21,7 @@ resources:
       type: github
       name: FlyingCockatoo/BuildTemplates
       endpoint: FlyingCockatoo
-      #ref: refs/tags/v0.1.4
-      ref: refs/heads/release/0.3.0
+      ref: refs/tags/v0.3.0
     - repository: nuget-helper
       type: github
       name: FlyingCockatoo/infra-build-nuget-helper
@@ -32,6 +31,7 @@ resources:
 extends:
   template: dotnetservice.yml@bt
   parameters:
+    dotnetVersion: '3.1.426'
     projects:
       - Auth.Api
     preBuild:
