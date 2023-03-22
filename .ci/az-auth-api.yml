@@ -1,4 +1,4 @@
-name: $(System.TeamProject)-Auth-API-$(Build.BuildId)
+name: Auth-API-$(Build.BuildId)
 
 pr: none
 
@@ -21,7 +21,7 @@ resources:
       type: github
       name: FlyingCockatoo/BuildTemplates
       endpoint: FlyingCockatoo
-      ref: refs/tags/v0.3.0
+      ref: refs/tags/v0.4.0
     - repository: nuget-helper
       type: github
       name: FlyingCockatoo/infra-build-nuget-helper
@@ -31,7 +31,6 @@ resources:
 extends:
   template: dotnetservice.yml@bt
   parameters:
-    dotnetVersion: '6.0.406'
     projects:
       - Auth.Api
     preBuild:
@@ -42,4 +41,5 @@ extends:
           targetType: inline
           script: |
             APP_VERSION=$(jq -r '.version' .version)
+            echo "##vso[task.setvariable variable=appversion;]${APP_VERSION}.${BUILD_BUILDID}"
             echo "##vso[build.updatebuildnumber]Auth-API-v${APP_VERSION}.${BUILD_BUILDID}"
