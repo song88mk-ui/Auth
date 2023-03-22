@@ -594,11 +594,6 @@ namespace Auth.Api.Repositories
 
             var categoryIds = categories.Split(',').ToList();
 
-            if(!categoryIds.Contains("0"))
-            {
-                categoryIds.Add("0");
-            }
-
             var query = _authContext.Permission.Where(c => versions.Contains(c.Version) && categoryIds.Contains(c.CategoryId.ToString()));
 
             if (isSubUserOnly)
