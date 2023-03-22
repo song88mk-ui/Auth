@@ -31,7 +31,7 @@ resources:
 extends:
   template: dotnetservice.yml@bt
   parameters:
-    dotnetVersion: '3.1.426'
+    dotnetVersion: '6.0.406'
     projects:
       - Auth.Api
     preBuild:
