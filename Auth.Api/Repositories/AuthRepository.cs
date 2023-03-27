@@ -654,23 +654,26 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions()
         {
-            var user = _authContext.AspNetUsers.
-                Join(_authContext.AspNetUserTokens, users => users.Id, tokens => tokens.UserId, (users, tokens) => new { Users = users, Tokens = tokens})
-                .Where(x => x.Tokens.SessionExpirationDate > DateTime.UtcNow).OrderByDescending(x => x.Tokens.SessionExpirationDate)
-                .Select(x => x.Users.IdRef).ToList();
+            var userTokens = _authContext.AspNetUserTokens
+                .Select(s => new
+                {
+                    UserId = s.UserId,
+                    SessionExpirationDate = s.SessionExpirationDate
+                }).ToList();
 
-            var result = new UsersOnlineResponse();
+            var userIds = _authContext.AspNetUsers.Select(s => s.Id).ToList();
+            var filteredUserIds = userTokens.Where(c => userIds.Contains(c.UserId) && c.SessionExpirationDate > DateTime.UtcNow).Select(s => s.UserId).ToList();
 
-            foreach (var item in user)
-            {
-                result.OnlineUsers.Add(item);
-            }
+            var userIdRefs = _authContext.AspNetUsers.Select(s => s.IdRef).ToList();
 
             return new BaseResponse<UsersOnlineResponse>()
             {
                 StatusCode = StatusCode.Success,
                 Message = StatusCode.Success.ToString(),
-                Result = result
+                Result = new UsersOnlineResponse()
+                {
+                    OnlineUsers = userIdRefs
+                }
             };
         }
 
