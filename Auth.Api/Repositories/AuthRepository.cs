@@ -376,9 +376,20 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
+                //var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
 
                 if (userToken == null)
+                {
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = "Invalid Token.",
+                        Result = null
+                    };
+                }
+
+                if (userToken.Value != token)
                 {
                     return new BaseResponse<TokenModel>
                     {
