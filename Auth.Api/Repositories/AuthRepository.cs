@@ -664,7 +664,7 @@ namespace Auth.Api.Repositories
             var userIds = _authContext.AspNetUsers.Select(s => s.Id).ToList();
             var filteredUserIds = userTokens.Where(c => userIds.Contains(c.UserId) && c.SessionExpirationDate > DateTime.UtcNow).Select(s => s.UserId).ToList();
 
-            var userIdRefs = _authContext.AspNetUsers.Select(s => s.IdRef).ToList();
+            var userIdRefs = _authContext.AspNetUsers.Where(x => filteredUserIds.Contains(x.Id)).Select(s => s.IdRef).ToList();
 
             return new BaseResponse<UsersOnlineResponse>()
             {
