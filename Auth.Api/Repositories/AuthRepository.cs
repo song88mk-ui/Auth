@@ -405,17 +405,14 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                await Task.Run(() =>
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                 {
-                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
-                    {
-                        userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                    userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                        _authContext.AspNetUserTokens.Update(userToken);
-                        _authContext.SaveChanges();
-                        scope.Complete();
-                    };
-                });
+                    _authContext.AspNetUserTokens.Update(userToken);
+                    _authContext.SaveChanges();
+                    scope.Complete();
+                };
 
                 return new BaseResponse<TokenModel>
                 {
@@ -642,7 +639,7 @@ namespace Auth.Api.Repositories
                     x.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     x.Country.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
-                
+
                 var rowCount = activityLog.Count();
                 var skip = metaData.PageSize == -1 ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;
                 var totalPage = metaData.PageSize == -1 ? 0 : ((rowCount - 1) / metaData.PageSize) + 1;
