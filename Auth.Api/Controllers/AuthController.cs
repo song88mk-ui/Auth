@@ -38,6 +38,7 @@ namespace Auth.Api.Controllers
                         return Ok(result);
                     case AuthStatusCode.Invalid_Password:
                     case AuthStatusCode.Username_Not_Found:
+                    case AuthStatusCode.User_Is_Locked:
                     case AuthStatusCode.Unauthorized:
                         return Unauthorized(result);
                     default:
