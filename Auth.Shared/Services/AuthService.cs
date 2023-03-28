@@ -13,23 +13,21 @@ using System.Transactions;
 
 namespace Auth.Api.Services
 {
-    public class UserIdentityService : IUserIdentityService, IDisposable
+    public class AuthService : IAuthService, IDisposable
     {
         #region Fields
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<AppRole> _roleManager;
-        private readonly UserIdentityContext _userIdentityContext;
+        private readonly AuthContext _authContext;
         private readonly IMemCache _memCache;
-        private AuthContext _authContext { get; set; }
         #endregion
 
         #region Ctor
-        public UserIdentityService(AuthContext authContext, UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, UserIdentityContext userIdentityContext, IMemCache memCache)
+        public AuthService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, AuthContext authContext, IMemCache memCache)
         {
             _authContext = authContext;
             _userManager = userManager;
             _roleManager = roleManager;
-            _userIdentityContext = userIdentityContext;
             _memCache = memCache;
         }
         #endregion
@@ -236,8 +234,8 @@ namespace Auth.Api.Services
         {
             try
             {
-                var userClaims = _userIdentityContext.UserClaims.AsNoTracking().Where(c => c.UserId == userId);
-                _userIdentityContext.UserClaims.RemoveRange(userClaims);
+                var userClaims = _authContext.UserClaims.AsNoTracking().Where(c => c.UserId == userId);
+                _authContext.UserClaims.RemoveRange(userClaims);
 
                 var newSettings = new List<IdentityUserClaim<string>>();
                 foreach (var item in settings)
@@ -251,7 +249,7 @@ namespace Auth.Api.Services
                 }
 
                 if (newSettings.Any())
-                    await _userIdentityContext.UserClaims.AddRangeAsync(newSettings);
+                    await _authContext.UserClaims.AddRangeAsync(newSettings);
 
                 return true;
             }
@@ -266,7 +264,7 @@ namespace Auth.Api.Services
             try
             {
                 var result = new List<string>();
-                var userClaims = _userIdentityContext.UserClaims.AsNoTracking().Where(c => c.UserId == userId).ToList();
+                var userClaims = _authContext.UserClaims.AsNoTracking().Where(c => c.UserId == userId).ToList();
 
                 if (userClaims != null)
                 {
@@ -288,7 +286,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var userRole = _userIdentityContext.UserRoles.FirstOrDefault(c => c.UserId == request.Id)?.RoleId;
+                var userRole = _authContext.UserRoles.FirstOrDefault(c => c.UserId == request.Id)?.RoleId;
                 var role = _roleManager.Roles.FirstOrDefault(c => c.Id == userRole);
 
                 if (role != null)
@@ -317,7 +315,7 @@ namespace Auth.Api.Services
                 var result = new UserListResponse();
                 if (users.Any())
                 {
-                    var userGroups = _userIdentityContext.UserRoles.Join(_userIdentityContext.Roles,
+                    var userGroups = _authContext.UserRoles.Join(_authContext.Roles,
                                      userRole => userRole.RoleId,
                                      role => role.Id,
                                      (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName, role.UserGroupIdRef }).ToList();
@@ -389,7 +387,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var roleId = _userIdentityContext.UserRoles.Where(x => x.UserId == userid);
+                var roleId = _authContext.UserRoles.Where(x => x.UserId == userid);
                 return roleId.FirstOrDefault().RoleId;
             }
             catch (Exception ex)
@@ -853,7 +851,7 @@ namespace Auth.Api.Services
                 {
                     foreach (var claims in request.Claims)
                     {
-                        var newClaims = _userIdentityContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claims.ClaimType);
+                        var newClaims = _authContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claims.ClaimType);
                         if (newClaims == null)
                         {
                             Claim newClaims2 = new Claim(claims.ClaimType, claims.ClaimValue);
@@ -862,11 +860,11 @@ namespace Auth.Api.Services
                         else
                         {
                             newClaims.ClaimValue = claims.ClaimValue;
-                            _userIdentityContext.RoleClaims.Update(newClaims);
+                            _authContext.RoleClaims.Update(newClaims);
 
-                            await _userIdentityContext.SaveChangesAsync();
+                            await _authContext.SaveChangesAsync();
 
-                            _userIdentityContext.Entry(newClaims).State = EntityState.Detached;
+                            _authContext.Entry(newClaims).State = EntityState.Detached;
                         }
                     }
 
@@ -1074,7 +1072,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var exisitingNickname = _authContext.AspNetUsers.FirstOrDefaultAsync(x => x.NickName == nickname);
+                var exisitingNickname = _authContext.Users.FirstOrDefaultAsync(x => x.NickName == nickname);
                 var existingUser = await _userManager.FindByNameAsync(nickname);
 
                 if (existingUser != null || exisitingNickname != null)
@@ -1192,7 +1190,7 @@ namespace Auth.Api.Services
         {
             if (long.TryParse(id, out long idRef))
             {
-                var appUser = _authContext.AspNetUsers.FirstOrDefault(x => x.IdRef == idRef);
+                var appUser = _authContext.Users.FirstOrDefault(x => x.IdRef == idRef);
 
                 id = appUser == null || idRef == 0 ? id : appUser.Id;
             }
@@ -1203,7 +1201,7 @@ namespace Auth.Api.Services
         {
             if (long.TryParse(id, out long userGroupIdRef))
             {
-                var appRole = _authContext.AspNetRoles.FirstOrDefault(x => x.UserGroupIdRef == userGroupIdRef);
+                var appRole = _authContext.Roles.FirstOrDefault(x => x.UserGroupIdRef == userGroupIdRef);
 
                 id = appRole == null || userGroupIdRef == 0 ? id : appRole.Id;
             }
@@ -1246,7 +1244,7 @@ namespace Auth.Api.Services
             {
                 var superAdmin = _roleManager.Roles.AsNoTracking().Where(x => x.Name.Trim().ToUpper() == "SUPERADMIN").FirstOrDefault()?.Id ?? "";
                 users = users.
-                    Join(_userIdentityContext.UserRoles, user => user.Id, userRole => userRole.UserId, (user, userRole) => new { user, userRole.RoleId })
+                    Join(_authContext.UserRoles, user => user.Id, userRole => userRole.UserId, (user, userRole) => new { user, userRole.RoleId })
                     .Where(x => x.RoleId != superAdmin)
                     .Select(x => x.user).ToList();
             }

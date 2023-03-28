@@ -21,7 +21,7 @@ namespace Auth.Api.Repositories
         #region Properties
 
         private IConfiguration _configuration { get; set; }
-        private IUserIdentityService _userIdentityService { get; set; }
+        private IAuthService _userIdentityService { get; set; }
         private readonly IMemCache _cacheAccess;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
@@ -41,7 +41,7 @@ namespace Auth.Api.Repositories
         public AuthRepository(AuthContext authContext,
             UserManager<AppUser> userManager,
             IConfiguration config,
-            IUserIdentityService userIdentityService,
+            IAuthService userIdentityService,
             IMemCache cache)
         {
             _authContext = authContext;
@@ -111,13 +111,13 @@ namespace Auth.Api.Repositories
                             permissions = (await GetPermissionList(isSubUser, 0, "10")).Result.Permissions ?? new List<PermissionModel>();
                         }
 
-                        userClaims = _authContext.AspNetUserClaims.Where(x => x.UserId == userId)
+                        userClaims = _authContext.UserClaims.Where(x => x.UserId == userId)
                             .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
                     }
                     else
                     {
-                        userClaims = _authContext.AspNetRoleClaims
-                            .Join(_authContext.AspNetUserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId, (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
+                        userClaims = _authContext.RoleClaims
+                            .Join(_authContext.UserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId, (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
                             .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
                             .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
                     }
@@ -154,7 +154,7 @@ namespace Auth.Api.Repositories
         private async Task SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
             if (loginModel == null)
-                loginModel = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
+                loginModel = _authContext.UserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
                 {
                     Username = x.Name,
                     Provider = x.LoginProvider
@@ -162,13 +162,13 @@ namespace Auth.Api.Repositories
 
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                var oldToken = _authContext.AspNetUserTokens.Where(x => x.UserId == user.Id);
+                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id);
                 var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
                 if (oldToken.Any())
-                    _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.UserId == user.Id));
+                    _authContext.UserTokens.RemoveRange(_authContext.UserTokens.Where(x => x.UserId == user.Id));
 
-                _authContext.AspNetUserTokens.Add(new AspNetUserTokens()
+                _authContext.UserTokens.Add(new AppToken()
                 {
                     UserId = user.Id,
                     LoginProvider = loginModel.Provider,
@@ -193,14 +193,7 @@ namespace Auth.Api.Repositories
                     });
                 }
 
-                var sw = new Stopwatch();
-                sw.Start();
                 _authContext.SaveChanges();
-
-                sw.Stop();
-                var elapsed = sw.ElapsedMilliseconds;
-
-                Console.WriteLine($"Concat elapsed: {elapsed} ms");
                 scope.Complete();
             }
         }
@@ -262,7 +255,7 @@ namespace Auth.Api.Repositories
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
                 var operatorToken = Guid.NewGuid().ToString();
-                SaveToken(user, accessToken, operatorToken, content);
+                await SaveToken(user, accessToken, operatorToken, content);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -298,11 +291,11 @@ namespace Auth.Api.Repositories
             }
 
             var userId = string.Empty;
-            var tokenEntity = new AspNetUserTokens();
+            var tokenEntity = new AppToken();
 
             if (isOperator)
             {
-                tokenEntity = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                tokenEntity = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
                 userId = tokenEntity != null ? tokenEntity.UserId : "";
             }
             else
@@ -311,7 +304,7 @@ namespace Auth.Api.Repositories
                 var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
                 userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
 
-                tokenEntity = _authContext.AspNetUserTokens.Where(x => x.UserId == userId).FirstOrDefault();
+                tokenEntity = _authContext.UserTokens.Where(x => x.UserId == userId).FirstOrDefault();
             }
 
             if (tokenEntity == null)
@@ -327,7 +320,7 @@ namespace Auth.Api.Repositories
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
             {
                 var accessToken = tokenEntity.Value;
-                _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
+                _authContext.UserTokens.RemoveRange(_authContext.UserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
                 _authContext.SaveChanges();
                 scope.Complete();
             }
@@ -383,7 +376,7 @@ namespace Auth.Api.Repositories
                 var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
                 var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
 
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
+                var userToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
 
                 if (userToken == null)
                 {
@@ -409,7 +402,7 @@ namespace Auth.Api.Repositories
                 {
                     userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                    _authContext.AspNetUserTokens.Update(userToken);
+                    _authContext.UserTokens.Update(userToken);
                     _authContext.SaveChanges();
                     scope.Complete();
                 };
@@ -439,7 +432,7 @@ namespace Auth.Api.Repositories
         {
             try
             {
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                var userToken = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
 
                 if (userToken == null)
                 {
@@ -457,7 +450,7 @@ namespace Auth.Api.Repositories
                     {
                         userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                        _authContext.AspNetUserTokens.Update(userToken);
+                        _authContext.UserTokens.Update(userToken);
                         _authContext.SaveChanges();
                         scope.Complete();
                     };
@@ -527,7 +520,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var aspNetUserToken = _authContext.AspNetUserTokens.FirstOrDefault(x => x.UserId == user.Id);
+                var aspNetUserToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == user.Id);
 
                 if (aspNetUserToken == null)
                 {
@@ -672,17 +665,17 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions()
         {
-            var userTokens = _authContext.AspNetUserTokens
+            var userTokens = _authContext.UserTokens
                 .Select(s => new
                 {
                     UserId = s.UserId,
                     SessionExpirationDate = s.SessionExpirationDate
                 }).ToList();
 
-            var userIds = _authContext.AspNetUsers.Select(s => s.Id).ToList();
+            var userIds = _authContext.Users.Select(s => s.Id).ToList();
             var filteredUserIds = userTokens.Where(c => userIds.Contains(c.UserId) && c.SessionExpirationDate > DateTime.UtcNow).Select(s => s.UserId).ToList();
 
-            var userIdRefs = _authContext.AspNetUsers.Where(x => filteredUserIds.Contains(x.Id)).Select(s => s.IdRef).ToList();
+            var userIdRefs = _authContext.Users.Where(x => filteredUserIds.Contains(x.Id.ToString())).Select(s => s.IdRef).ToList();
 
             return new BaseResponse<UsersOnlineResponse>()
             {
@@ -702,7 +695,7 @@ namespace Auth.Api.Repositories
         {
             if (long.TryParse(id, out long idRef))
             {
-                var appUser = _authContext.AspNetUsers.FirstOrDefault(x => x.IdRef == idRef);
+                var appUser = _authContext.Users.FirstOrDefault(x => x.IdRef == idRef);
 
                 id = appUser == null || idRef == 0 ? id : appUser.Id;
             }

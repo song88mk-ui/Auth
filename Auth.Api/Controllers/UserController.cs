@@ -16,10 +16,10 @@ namespace Auth.Api.Controllers
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class UserController : ControllerBase
     {
-        private IUserIdentityService _userIdentityService { get; set; }
+        private IAuthService _userIdentityService { get; set; }
         private readonly IAuthRepository _authRepository;
 
-        public UserController(IUserIdentityService userIdentityService, IAuthRepository authRepository)
+        public UserController(IAuthService userIdentityService, IAuthRepository authRepository)
         {
             _userIdentityService = userIdentityService;
             _authRepository = authRepository;

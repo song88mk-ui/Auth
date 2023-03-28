@@ -19,16 +19,15 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Services.BuildServiceProvider().GetService<IConfiguration>();
 
 // Add services to the container.
-builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
-builder.Services.AddDbContext<UserIdentityContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Singleton);
-builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<UserIdentityContext>()
+builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Singleton);
+builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<AuthContext>()
     //.AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>))
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
 builder.Services.AddScoped<ApiKeyFilter>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-builder.Services.AddScoped<IUserIdentityService, UserIdentityService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddControllers().AddNewtonsoftJson(options => options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 builder.Services.AddSingleton<IMemCache, MemCache>();
 builder.Services.Configure<IdentityOptions>(options =>

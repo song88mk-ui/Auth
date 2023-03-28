@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace Auth.Api.Services
 {
-    public interface IUserIdentityService
+    public interface IAuthService
     {
         Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request);
         Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false);
