@@ -672,10 +672,10 @@ namespace Auth.Api.Repositories
                     SessionExpirationDate = s.SessionExpirationDate
                 }).ToList();
 
-            var userIds = _authContext.Users.Select(s => s.Id).ToList();
+            var userIds = userTokens.Select(s => s.UserId).ToList();
             var filteredUserIds = userTokens.Where(c => userIds.Contains(c.UserId) && c.SessionExpirationDate > DateTime.UtcNow).Select(s => s.UserId).ToList();
 
-            var userIdRefs = _authContext.Users.Where(x => filteredUserIds.Contains(x.Id.ToString())).Select(s => s.IdRef).ToList();
+            var userIdRefs = _authContext.Users.Where(x => filteredUserIds.Contains(x.Id)).Select(s => s.IdRef);
 
             return new BaseResponse<UsersOnlineResponse>()
             {
@@ -683,7 +683,7 @@ namespace Auth.Api.Repositories
                 Message = StatusCode.Success.ToString(),
                 Result = new UsersOnlineResponse()
                 {
-                    OnlineUsers = userIdRefs
+                    OnlineUsers = userIdRefs.ToList()
                 }
             };
         }
