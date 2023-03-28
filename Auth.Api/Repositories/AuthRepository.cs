@@ -8,6 +8,7 @@ using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -192,16 +193,15 @@ namespace Auth.Api.Repositories
                     });
                 }
 
+                var sw = new Stopwatch();
+                sw.Start();
                 _authContext.SaveChanges();
+
+                sw.Stop();
+                var elapsed = sw.ElapsedMilliseconds;
+
+                Console.WriteLine($"Concat elapsed: {elapsed} ms");
                 scope.Complete();
-                var tokenModel = new TokenCacheModel()
-                {
-                    UserId = user.Id,
-                    UserIdRef = user.IdRef,
-                    OperatorToken = operatorToken,
-                    AccessToken = token,
-                    SessionExpirationDate = sessionExpirationDate
-                };
             }
         }
 
@@ -262,7 +262,7 @@ namespace Auth.Api.Repositories
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
                 var operatorToken = Guid.NewGuid().ToString();
-                await SaveToken(user, accessToken, operatorToken, content);
+                SaveToken(user, accessToken, operatorToken, content);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -297,7 +297,23 @@ namespace Auth.Api.Repositories
                 };
             }
 
-            var tokenEntity = isOperator ? _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault() : _authContext.AspNetUserTokens.Where(x => x.Value == token).FirstOrDefault();
+            var userId = string.Empty;
+            var tokenEntity = new AspNetUserTokens();
+
+            if (isOperator)
+            {
+                tokenEntity = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                userId = tokenEntity != null ? tokenEntity.UserId : "";
+            }
+            else
+            {
+                var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
+                var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+                userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+
+                tokenEntity = _authContext.AspNetUserTokens.Where(x => x.UserId == userId).FirstOrDefault();
+            }
+
             if (tokenEntity == null)
             {
                 return new BaseResponse<bool>
@@ -308,10 +324,13 @@ namespace Auth.Api.Repositories
                 };
             }
 
-            var accessToken = tokenEntity.Value;
-            var userId = tokenEntity.UserId;
-            _authContext.AspNetUserTokens.Remove(_authContext.AspNetUserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
-            _authContext.SaveChangesAsync();
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+            {
+                var accessToken = tokenEntity.Value;
+                _authContext.AspNetUserTokens.RemoveRange(_authContext.AspNetUserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
+                _authContext.SaveChanges();
+                scope.Complete();
+            }
 
             return new BaseResponse<bool>
             {
@@ -362,22 +381,9 @@ namespace Auth.Api.Repositories
 
                 var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                 var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-                var name = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
                 var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
 
-                var user = _userManager.FindByNameAsync(name).Result;
-                if (user == null)
-                {
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Invalid Token.",
-                        Result = null
-                    };
-                }
-
-                //var userToken = _authContext.AspNetUserTokens.Where(x => x.Value == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
 
                 if (userToken == null)
                 {
@@ -399,15 +405,17 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-                token = userToken.Value;
-                var tokenModel = new TokenCacheModel()
+                await Task.Run(() =>
                 {
-                    OperatorToken = userToken.OperatorToken ?? "",
-                    AccessToken = token,
-                    SessionExpirationDate = sessionExpirationDate
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+                    {
+                        userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                };
+                        _authContext.AspNetUserTokens.Update(userToken);
+                        _authContext.SaveChanges();
+                        scope.Complete();
+                    };
+                });
 
                 return new BaseResponse<TokenModel>
                 {
@@ -415,8 +423,8 @@ namespace Auth.Api.Repositories
                     Message = StatusCode.Success.ToString(),
                     Result = new TokenModel()
                     {
-                        OperatorToken = tokenModel.OperatorToken,
-                        AccessToken = tokenModel.AccessToken
+                        OperatorToken = userToken.OperatorToken ?? "",
+                        AccessToken = userToken.Value
                     }
                 };
             }
@@ -434,7 +442,7 @@ namespace Auth.Api.Repositories
         {
             try
             {
-                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).OrderByDescending(x => x.SessionExpirationDate).FirstOrDefault();
+                var userToken = _authContext.AspNetUserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
 
                 if (userToken == null)
                 {
@@ -448,29 +456,43 @@ namespace Auth.Api.Repositories
 
                 if (userToken != null)
                 {
-                    userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+                    {
+                        userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                    _authContext.AspNetUserTokens.Update(userToken);
-                    _authContext.SaveChanges();
+                        _authContext.AspNetUserTokens.Update(userToken);
+                        _authContext.SaveChanges();
+                        scope.Complete();
+                    };
                 }
 
-                var user = await _userManager.FindByIdAsync(userToken.UserId);
-                string result = userToken.UserId;
+                var parsedToken = JwtParser.ParseClaimsFromJwt(userToken.Value).ToList();
+                var result = string.Empty;
 
                 if (isAgent)
                 {
-                    result = user.IdRef.ToString();
-                }
-
-                return new OperatorBaseResponse<object>
-                {
-                    StatusCode = (int)StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new
+                    return new OperatorBaseResponse<object>
                     {
-                        UserId = result
-                    }
-                };
+                        StatusCode = (int)StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new
+                        {
+                            UserId = parsedToken.Where(x => x.Type == "UserIdRef").Select(x => x.Value).FirstOrDefault().ToString()
+                        }
+                    };
+                }
+                else
+                {
+                    return new OperatorBaseResponse<object>
+                    {
+                        StatusCode = (int)StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new
+                        {
+                            UserId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault().ToString()
+                        }
+                    };
+                }
             }
             catch (Exception ex)
             {
@@ -609,7 +631,7 @@ namespace Auth.Api.Repositories
                     IpAddress = x.IpAddress,
                     Country = x.Country,
                     Date = DateTime.Parse(x.Date.ToString())
-                }).ToList().OrderByDescending(x => x.Date).ToList();
+                }).OrderByDescending(x => x.Date).ToList();
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -620,8 +642,7 @@ namespace Auth.Api.Repositories
                     x.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     x.Country.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
-
-
+                
                 var rowCount = activityLog.Count();
                 var skip = metaData.PageSize == -1 ? 0 : (metaData.CurrentPage - 1) * metaData.PageSize;
                 var totalPage = metaData.PageSize == -1 ? 0 : ((rowCount - 1) / metaData.PageSize) + 1;
