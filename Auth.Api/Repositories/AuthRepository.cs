@@ -230,7 +230,7 @@ namespace Auth.Api.Repositories
                 {
                     return new BaseResponse<TokenModel>
                     {
-                        StatusCode = StatusCode.Unauthorized,
+                        StatusCode = StatusCode.User_Is_Locked,
                         Message = "User is locked.",
                         Result = null
                     };
