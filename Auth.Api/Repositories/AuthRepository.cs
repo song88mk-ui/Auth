@@ -154,19 +154,21 @@ namespace Auth.Api.Repositories
         private async Task SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
             if (loginModel == null)
-                loginModel = _authContext.UserTokens.Where(x => x.UserId == user.Id).Select(x => new LoginModel()
+                loginModel = _authContext.UserTokens.Where(x => x.UserId == user.Id).AsNoTracking().Select(x => new LoginModel()
                 {
                     Username = x.Name,
                     Provider = x.LoginProvider
-                }).FirstOrDefault();
+                }).AsNoTracking().FirstOrDefault();
 
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id);
+                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).ToList();
                 var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
                 if (oldToken.Any())
-                    _authContext.UserTokens.RemoveRange(_authContext.UserTokens.Where(x => x.UserId == user.Id));
+                {
+                    _authContext.UserTokens.RemoveRange(oldToken);
+                }
 
                 _authContext.UserTokens.Add(new AppToken()
                 {
