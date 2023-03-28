@@ -249,7 +249,10 @@ namespace Auth.Api.Services
                 }
 
                 if (newSettings.Any())
+                {
                     await _authContext.UserClaims.AddRangeAsync(newSettings);
+                    _authContext.SaveChanges();
+                }
 
                 return true;
             }
@@ -529,6 +532,7 @@ namespace Auth.Api.Services
                         var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
                     }
 
+                    _authContext.SaveChanges();
                     scope.Complete();
                 }
                 return new BaseResponse<long>
@@ -643,6 +647,7 @@ namespace Auth.Api.Services
                     };
                 }
 
+                _authContext.SaveChanges();
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
@@ -697,6 +702,7 @@ namespace Auth.Api.Services
                     await _userManager.AddClaimsAsync(user, claims);
                 }
 
+                _authContext.SaveChanges();
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
@@ -754,6 +760,7 @@ namespace Auth.Api.Services
                 };
             }
 
+            _authContext.SaveChanges();
             return new BaseResponse<bool?>
             {
                 StatusCode = StatusCode.Success,
@@ -787,9 +794,9 @@ namespace Auth.Api.Services
                     Result = null
                 };
             }
-            
+
             user.LockoutEnd = DateTimeOffset.UtcNow.AddDays(1);
-            var result = await _userManager.UpdateAsync(user);            
+            var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
             {
                 return new BaseResponse<bool?>()
@@ -800,6 +807,7 @@ namespace Auth.Api.Services
                 };
             }
 
+            _authContext.SaveChanges();
             return new BaseResponse<bool?>
             {
                 StatusCode = StatusCode.Success,
@@ -856,6 +864,8 @@ namespace Auth.Api.Services
                         {
                             Claim newClaims2 = new Claim(claims.ClaimType, claims.ClaimValue);
                             await _roleManager.AddClaimAsync(appRole, newClaims2);
+
+                            await _authContext.SaveChangesAsync();
                         }
                         else
                         {
@@ -869,6 +879,7 @@ namespace Auth.Api.Services
                     }
 
 
+                    _authContext.SaveChanges();
                     scope.Complete();
                 }
 
@@ -1113,6 +1124,7 @@ namespace Auth.Api.Services
                     };
                 }
 
+                _authContext.SaveChanges();
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
