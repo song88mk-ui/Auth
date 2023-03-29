@@ -19,7 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Services.BuildServiceProvider().GetService<IConfiguration>();
 
 // Add services to the container.
-builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]), ServiceLifetime.Singleton);
+builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
 builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<AuthContext>()
     //.AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>))
     .AddDefaultTokenProviders();
