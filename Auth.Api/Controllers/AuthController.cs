@@ -70,7 +70,7 @@ namespace Auth.Api.Controllers
                 if (HttpContext.Request.Headers.ContainsKey("Authorization"))
                 {
                     var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                    result = await this._authRepository.Authenticate(token);
+                    result = _authRepository.Authenticate(token);
                 }
 
                 switch (result.StatusCode)

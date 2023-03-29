@@ -334,7 +334,7 @@ namespace Auth.Api.Repositories
                 Result = true
             };
         }
-        public async Task<BaseResponse<TokenModel>> Authenticate(string token)
+        public BaseResponse<TokenModel> Authenticate(string token)
         {
             try
             {

@@ -16,7 +16,7 @@ namespace Auth.Api.ActionFilters
         private IConfiguration _configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json").Build();
-        public async void OnAuthorization(AuthorizationFilterContext context)
+        public void OnAuthorization(AuthorizationFilterContext context)
         {
             if (!context.HttpContext.Request.Headers.ContainsKey("Authorization"))
             {
@@ -25,9 +25,9 @@ namespace Auth.Api.ActionFilters
             }
 
             var token = context.HttpContext.Request.Headers[HeaderNames.Authorization].ToString().Replace("Bearer ", "");
-            var authRepository = (IAuthRepository)context.HttpContext.RequestServices.GetService(typeof(IAuthRepository));
+            var authRepository = context.HttpContext.RequestServices.GetService(typeof(IAuthRepository)) as IAuthRepository;
 
-            var validToken = await authRepository.Authenticate(token);
+            var validToken = authRepository.Authenticate(token);
 
             if (validToken.Result?.AccessToken == null)
             {
