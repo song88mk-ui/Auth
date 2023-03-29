@@ -153,32 +153,32 @@ namespace Auth.Api.Repositories
         }
         private async Task SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
-            if (loginModel == null)
-                loginModel = _authContext.UserTokens.Where(x => x.UserId == user.Id).AsNoTracking().Select(x => new LoginModel()
-                {
-                    Username = x.Name,
-                    Provider = x.LoginProvider
-                }).AsNoTracking().FirstOrDefault();
-
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).ToList();
+                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
                 var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                if (oldToken.Any())
+                if (oldToken != null)
                 {
-                    _authContext.UserTokens.RemoveRange(oldToken);
-                }
 
-                _authContext.UserTokens.Add(new AppToken()
+                    oldToken.Value = token;
+                    oldToken.OperatorToken = operatorToken;
+                    oldToken.SessionExpirationDate = sessionExpirationDate;
+
+                    _authContext.UserTokens.Update(oldToken);
+                }
+                else
                 {
-                    UserId = user.Id,
-                    LoginProvider = loginModel.Provider,
-                    Name = loginModel.Username,
-                    Value = token,
-                    OperatorToken = operatorToken,
-                    SessionExpirationDate = sessionExpirationDate
-                });
+                    _authContext.UserTokens.Add(new AppToken()
+                    {
+                        UserId = user.Id,
+                        LoginProvider = loginModel.Provider,
+                        Name = loginModel.Username,
+                        Value = token,
+                        OperatorToken = operatorToken,
+                        SessionExpirationDate = sessionExpirationDate
+                    });
+                }
 
                 if (loginModel != null)
                 {
@@ -448,7 +448,7 @@ namespace Auth.Api.Repositories
 
                 if (userToken != null)
                 {
-                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                     {
                         userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
