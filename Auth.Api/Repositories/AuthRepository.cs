@@ -22,7 +22,7 @@ namespace Auth.Api.Repositories
 
         private IConfiguration _configuration { get; set; }
         private IAuthService _userIdentityService { get; set; }
-        private readonly IMemCache _cacheAccess;
+        private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
 
@@ -42,7 +42,7 @@ namespace Auth.Api.Repositories
             UserManager<AppUser> userManager,
             IConfiguration config,
             IAuthService userIdentityService,
-            IMemCache cache)
+            IMemCache memCache)
         {
             _authContext = authContext;
             _userManager = userManager;
@@ -51,7 +51,7 @@ namespace Auth.Api.Repositories
 
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"];
-            _cacheAccess = cache;
+            _memCache = memCache;
         }
 
         #endregion
@@ -160,16 +160,17 @@ namespace Auth.Api.Repositories
 
                 if (oldToken != null)
                 {
-
                     oldToken.Value = token;
                     oldToken.OperatorToken = operatorToken;
                     oldToken.SessionExpirationDate = sessionExpirationDate;
 
                     _authContext.UserTokens.Update(oldToken);
+
+                    _memCache.AddOrUpdateCache($"ot:{operatorToken}", oldToken, DateTimeOffset.UtcNow.AddDays(1));
                 }
                 else
                 {
-                    _authContext.UserTokens.Add(new AppToken()
+                    var newToken = new AppToken
                     {
                         UserId = user.Id,
                         LoginProvider = loginModel.Provider,
@@ -177,7 +178,11 @@ namespace Auth.Api.Repositories
                         Value = token,
                         OperatorToken = operatorToken,
                         SessionExpirationDate = sessionExpirationDate
-                    });
+                    };
+
+                    _authContext.UserTokens.Add(newToken);
+
+                    _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
                 }
 
                 if (loginModel != null)
@@ -291,6 +296,8 @@ namespace Auth.Api.Repositories
                     Result = true
                 };
             }
+
+            _memCache.DeleteCache($"ot:{token}");
 
             var userId = string.Empty;
             var tokenEntity = new AppToken();
@@ -442,6 +449,39 @@ namespace Auth.Api.Repositories
         }
         public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
         {
+            var cache = _memCache.GetCache<AppToken>($"ot:{token}");
+
+            if (cache != null)
+            {
+                var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
+                var result = string.Empty;
+
+                if (isAgent)
+                {
+                    return new OperatorBaseResponse<object>
+                    {
+                        StatusCode = (int)StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new
+                        {
+                            UserId = parsedToken.Where(x => x.Type == "UserIdRef").Select(x => x.Value).FirstOrDefault().ToString()
+                        }
+                    };
+                }
+                else
+                {
+                    return new OperatorBaseResponse<object>
+                    {
+                        StatusCode = (int)StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new
+                        {
+                            UserId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault().ToString()
+                        }
+                    };
+                }
+            }
+
             try
             {
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
