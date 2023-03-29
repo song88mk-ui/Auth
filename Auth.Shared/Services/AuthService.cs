@@ -511,26 +511,21 @@ namespace Auth.Api.Services
                     }
 
 
-                    if (user.MainUserId != null && user.MainUserId != string.Empty && user.MainUserId != "0")
+                    if (!string.IsNullOrEmpty(user.MainUserId) && user.MainUserId != "0")
                     {
-                        if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                        var claims = new List<Claim>();
+                        if (request.Claims != null && request.Claims.Any())
                         {
-                            var claims = new List<Claim>();
-                            if (request.Claims != null && request.Claims.Any())
-                            {
-                                claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
-                                await _userManager.AddClaimsAsync(user, claims);
-                            }
+                            claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
+                            await _userManager.AddClaimsAsync(user, claims);
                         }
                     }
-                    else
+
+                    if (string.IsNullOrWhiteSpace(request.RoleId))
                     {
-                        if (string.IsNullOrWhiteSpace(request.RoleId))
-                        {
-                            request.RoleName = "Default";
-                        }
-                        var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+                        request.RoleName = "Default";
                     }
+                    var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
 
                     _authContext.SaveChanges();
                     scope.Complete();
