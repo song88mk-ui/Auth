@@ -153,7 +153,7 @@ namespace Auth.Api.Repositories
         }
         private async Task SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
-            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
                 var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
                 var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
@@ -319,10 +319,10 @@ namespace Auth.Api.Repositories
                 };
             }
 
-            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
                 var accessToken = tokenEntity.Value;
-                _authContext.UserTokens.RemoveRange(_authContext.UserTokens.Where(x => x.Value == accessToken && x.UserId == userId).FirstOrDefault());
+                _authContext.UserTokens.Remove(tokenEntity);
                 _authContext.SaveChanges();
                 scope.Complete();
             }
@@ -400,7 +400,7 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
                     userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
