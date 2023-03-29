@@ -133,7 +133,7 @@ namespace Auth.Api.Controllers
                 var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
                 if (token != null)
                 {
-                    result = await this._authRepository.AuthenticateOperator(token, isAgent);
+                    result = _authRepository.AuthenticateOperator(token, isAgent);
                 }
 
                 switch (result.StatusCode)
