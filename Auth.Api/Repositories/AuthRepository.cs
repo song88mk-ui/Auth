@@ -151,7 +151,7 @@ namespace Auth.Api.Repositories
 
             return token;
         }
-        private async Task SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
+        private void SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
@@ -257,7 +257,7 @@ namespace Auth.Api.Repositories
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
                 var operatorToken = Guid.NewGuid().ToString();
-                await SaveToken(user, accessToken, operatorToken, content);
+                SaveToken(user, accessToken, operatorToken, content);
 
                 return new BaseResponse<TokenModel>
                 {
