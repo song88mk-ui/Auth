@@ -380,7 +380,7 @@ namespace Auth.Api.Repositories
 
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
-                    var userToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
+                    var userToken = _authContext.UserTokens.AsNoTracking().Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
 
                     if (userToken == null)
                     {
@@ -406,9 +406,11 @@ namespace Auth.Api.Repositories
 
                     if (userToken.SessionExpirationDate < DateTime.UtcNow)
                     {
-                        userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                        var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
 
-                        _authContext.UserTokens.Update(userToken);
+                        currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+
+                        _authContext.UserTokens.Update(currentUserToken);
                         _authContext.SaveChanges();
 
                     }
@@ -444,7 +446,7 @@ namespace Auth.Api.Repositories
             {
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
-                    var userToken = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                    var userToken = _authContext.UserTokens.AsNoTracking().Where(x => x.OperatorToken == token).FirstOrDefault();
 
                     if (userToken == null)
                     {
@@ -459,9 +461,11 @@ namespace Auth.Api.Repositories
 
                     if (userToken.SessionExpirationDate < DateTime.UtcNow)
                     {
-                        userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                        var currentUserToken = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
 
-                        _authContext.UserTokens.Update(userToken);
+                        currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+
+                        _authContext.UserTokens.Update(currentUserToken);
                         _authContext.SaveChanges();
                     }
 
