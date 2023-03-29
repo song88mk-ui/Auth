@@ -430,7 +430,7 @@ namespace Auth.Api.Repositories
                 };
             }
         }
-        public async Task<OperatorBaseResponse<object>> AuthenticateOperator(string token, bool isAgent = false)
+        public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
         {
             try
             {
