@@ -89,7 +89,7 @@ namespace Auth.Api.Controllers
                     AppName = "",
                     RoleId = "",
                     RoleName = "",
-                    Claims = new List<ClaimModel>(),
+                    Claims = request.Claims,
                     CreatedDate = DateTime.MinValue
                 };
 
