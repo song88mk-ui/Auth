@@ -546,7 +546,7 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, bool isDefault = false)
+        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false)
         {
             try
             {
@@ -626,7 +626,23 @@ namespace Auth.Api.Services
                     //user.PasswordHash = request.Password;
 
                     var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                    result = await _userManager.ResetPasswordAsync(user, token, request.Password);
+                    if (!string.IsNullOrWhiteSpace(oldPassword))
+                    {
+                        var isValidOldPassword = await _userManager.CheckPasswordAsync(user, oldPassword);
+
+                        if(isValidOldPassword)
+                        {
+                            result = await _userManager.ResetPasswordAsync(user, token, request.Password);
+                        }
+                        else
+                        {
+                            result = await _userManager.ResetPasswordAsync(user, oldPassword, request.Password);
+                        }
+                    }
+                    else
+                    {
+                        result = await _userManager.ResetPasswordAsync(user, token, request.Password);
+                    }
                 }
 
                 if (!result.Succeeded)

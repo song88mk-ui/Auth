@@ -10,6 +10,7 @@ namespace Auth.Shared.Models.Request
     {
         public string? Nickname { get; set; } = "";
         public string? Status { get; set; } = "";
+        public string? OldPassword { get; set; } = "";
         public string? Password { get; set; } = "";
         public List<ClaimModel>? Claims { get; set; } = null;
     }

@@ -93,7 +93,9 @@ namespace Auth.Api.Controllers
                     CreatedDate = DateTime.MinValue
                 };
 
-                var result = await _userIdentityService.UpdateAspNetUsers(userRequest);
+                var isValidOldPassword = false;
+
+                var result = await _userIdentityService.UpdateAspNetUsers(userRequest, request.OldPassword);
 
                 switch (result.StatusCode)
                 {
