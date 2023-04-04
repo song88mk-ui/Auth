@@ -577,7 +577,8 @@ namespace Auth.Api.Services
                 {
                     if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
                         user.LockoutEnd = DateTime.UtcNow;
-                    else
+                   
+                    if(request.Status.ToUpper() == "Normal".ToUpper() && user.LockoutEnd != null)
                         user.LockoutEnd = null;
                 }
 

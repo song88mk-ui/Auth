@@ -1,12 +1,8 @@
 ﻿using Auth.Api.Repositories;
-using Auth.Shared.Models;
-using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Net.Http.Headers;
 using System.Net;
-using System.Security.Claims;
-using System.Text.Json;
 
 namespace Auth.Api.ActionFilters
 {

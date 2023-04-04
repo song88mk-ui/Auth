@@ -6,7 +6,7 @@ using Auth.Shared.Models.Request;
 using Auth.Shared.Models.Response;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using System.Linq;
+using AuthorizeAttribute = Auth.Api.ActionFilters.AuthorizeAttribute;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
@@ -113,10 +113,30 @@ namespace Auth.Api.Controllers
             }
         }
 
-        [HttpPatch("account/unlock/{userId}")]
-        public async Task<IActionResult> UnlockAccount(long userId, [FromQuery(Name = "is-unlocked")] bool isUnlocked)
+        [HttpPost("status/update/{userId}")]
+        public async Task<IActionResult> UnlockAccount(string userId, [FromQuery] bool isLocked)
         {
-            var result = isUnlocked ? await _userIdentityService.UnlockAccount(userId) : await _userIdentityService.LockAccount(userId);
+            var userRequest = new UserRegisterRequest()
+            {
+                UserId = userId,
+                UserIdRef = 0,
+                UserName = "",
+                Email = "",
+                Password = "",
+                NickName = "",
+                Status = isLocked ? "Locked" : "Normal",
+                MainUserId = "",
+                AppId = 0,
+                AppName = "",
+                RoleId = "",
+                RoleName = "",
+                Claims = null,
+                CreatedDate = DateTime.MinValue
+            };
+
+            var isValidOldPassword = false;
+
+            var result = await _userIdentityService.UpdateAspNetUsers(userRequest);
 
             switch (result.StatusCode)
             {

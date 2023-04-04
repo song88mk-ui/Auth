@@ -58,7 +58,7 @@ namespace Auth.Api.Repositories
 
         #region Methods
 
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, long userIdRef = 0l)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, long userIdRef = 0l, long mainUserIdRef = 0l)
         {
 
             var token = new SecurityTokenDescriptor
@@ -75,6 +75,7 @@ namespace Auth.Api.Repositories
             token.Subject.AddClaim(new Claim("Provider", provider));
             token.Subject.AddClaim(new Claim("TokenName", name));
             token.Subject.AddClaim(new Claim("MainUserId", mainUserId));
+            token.Subject.AddClaim(new Claim("MainUserIdRef", mainUserIdRef.ToString()));
 
             var isSubUser = false;
 
@@ -212,6 +213,7 @@ namespace Auth.Api.Repositories
                 // if main user get from role claims
                 // if sub user get from user claims
                 var user = await _userManager.FindByNameAsync(content.Username);
+                var mainUserIdRef = 0l;
 
                 if (user == null)
                 {
@@ -242,6 +244,10 @@ namespace Auth.Api.Repositories
                         Result = null
                     };
                 }
+                if (!string.IsNullOrEmpty(user.MainUserId) && user.MainUserId != "0")
+                {
+                    mainUserIdRef = _authContext.Users.FirstOrDefault(x => x.Id == user.MainUserId).IdRef;
+                }
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
@@ -257,7 +263,7 @@ namespace Auth.Api.Repositories
 
                 var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
 
-                var token = GenerateToken(user.Id, role, content.Provider, content.Username, user.MainUserId, user.IdRef);
+                var token = GenerateToken(user.Id, role, content.Provider, content.Username, user.MainUserId, user.IdRef, mainUserIdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
 
