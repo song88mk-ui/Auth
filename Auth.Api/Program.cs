@@ -3,16 +3,17 @@ using Auth.Api.Identity;
 using Auth.Api.Repositories;
 using Auth.Api.Services;
 using Auth.Shared.Data.Auth;
-using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Models;
+using Auth.Shared.Models.Request;
 using Auth.Shared.Utilities;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
-using System.Security.Principal;
+using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,19 +41,21 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredLength = 8;
     options.Password.RequiredUniqueChars = 0;
 });
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins",
         builder =>
         {
             builder.AllowAnyOrigin()
-           .AllowAnyMethod()
-           .AllowAnyHeader();
+            .AllowAnyMethod()
+            .AllowAnyHeader();
         });
 });
 builder.Services.AddSwaggerGen(option =>
 {
-    option.SwaggerDoc("v1", new OpenApiInfo { 
+    option.SwaggerDoc("v1", new OpenApiInfo
+    {
         Title = "Auth API",
         Version = "v1",
         Description = "Authorization API for web apps"
@@ -86,6 +89,26 @@ builder.Services.AddSwaggerGen(option =>
 builder.Services.AddControllers().AddJsonOptions(options =>
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = configuration["JWT:Issuer"],
+        ValidAudience = configuration["JWT:Issuer"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Key"]))
+    };
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
@@ -111,6 +134,7 @@ app.UseSwaggerUI(option =>
 //});
 app.UseCors();
 app.UseAuthorization();
+app.UseAuthentication();
 app.UseHttpsRedirection();
 
 app.MapControllers();

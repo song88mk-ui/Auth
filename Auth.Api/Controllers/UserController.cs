@@ -4,8 +4,10 @@ using Auth.Api.Services;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
 using Auth.Shared.Models.Response;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using System.Security;
 using AuthorizeAttribute = Auth.Api.ActionFilters.AuthorizeAttribute;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
@@ -70,6 +72,7 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
         [HttpPost("modify/{userId}")]
         public async Task<IActionResult> Update([FromRoute] string userid, [FromBody] UserModifyRequest request)
         {
@@ -217,6 +220,7 @@ namespace Auth.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
         [HttpPost("subaccount/list")]
         public async Task<IActionResult> GetSubAccounts([FromBody] SubAccountListRequest request)
         {
