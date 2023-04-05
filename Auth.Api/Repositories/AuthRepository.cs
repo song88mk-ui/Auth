@@ -673,17 +673,18 @@ namespace Auth.Api.Repositories
 
                 userId = GetUserId(userId);
 
-                var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).Select(x => new ActivityLogModel
-                {
-                    UserId = x.UserId,
-                    Token = x.Token,
-                    BrowserInfo = x.BrowserInfo,
-                    BrowserVersion = x.BrowserVersion,
-                    OperatingSystem = x.OperatingSystem,
-                    IpAddress = x.IpAddress,
-                    Country = x.Country,
-                    Date = DateTime.Parse(x.Date.ToString())
-                }).OrderByDescending(x => x.Date).ToList();
+                var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).OrderByDescending(x => x.Date)
+                    .Select(x => new ActivityLogModel
+                    {
+                        UserId = x.UserId,
+                        Token = x.Token,
+                        BrowserInfo = x.BrowserInfo,
+                        BrowserVersion = x.BrowserVersion,
+                        OperatingSystem = x.OperatingSystem,
+                        IpAddress = x.IpAddress,
+                        Country = x.Country,
+                        Date = DateTime.Parse(x.Date.ToString())
+                    }).ToList();
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
