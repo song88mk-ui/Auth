@@ -63,7 +63,7 @@ namespace Auth.Api.Repositories
             var token = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(),
-                TokenType = "bearer",
+                TokenType = "Bearer",
                 Expires = DateTime.UtcNow.AddMonths(3),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = Issuer,
@@ -626,7 +626,7 @@ namespace Auth.Api.Repositories
             var versions = new List<int>() { 0, 1, 2 };
             if (version > 0)
             {
-                versions = new List<int>() { version };
+                versions = new List<int>() { 0, version };
             }
 
             var categoryIds = categories.Split(',').ToList();
