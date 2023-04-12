@@ -576,7 +576,16 @@ namespace Auth.Api.Services
                 if (!string.IsNullOrWhiteSpace(request.Status))
                 {
                     if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
+                    {
+                        var userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
+
+                        if(userToken != null)
+                        {
+                            _memCache.DeleteCache($"ot:{userToken.Value}");
+                        }
+
                         user.LockoutEnd = DateTime.UtcNow;
+                    }
 
                     if (request.Status.ToUpper() == "Normal".ToUpper() && user.LockoutEnd != null)
                         user.LockoutEnd = null;
@@ -738,101 +747,6 @@ namespace Auth.Api.Services
             }
         }
 
-        public async Task<BaseResponse<bool?>> UnlockAccount(long userId)
-        {
-            var userIdStr = GetUserId(userId.ToString());
-
-            var user = (await _userManager.FindByIdAsync(userIdStr));
-
-            if (user == null)
-            {
-                return new BaseResponse<bool?>()
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = "User does not exist",
-                    Result = false
-                };
-            }
-
-            if (user.LockoutEnd is null)
-            {
-                return new BaseResponse<bool?>()
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = "User account is already locked",
-                    Result = null
-                };
-            }
-
-            user.LockoutEnd = null;
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
-            {
-                return new BaseResponse<bool?>()
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"Cannot unlock user account",
-                    Result = false
-                };
-            }
-
-            _authContext.SaveChanges();
-            return new BaseResponse<bool?>
-            {
-                StatusCode = StatusCode.Success,
-                Message = "User account is unlocked",
-                Result = true
-            };
-        }
-
-        public async Task<BaseResponse<bool?>> LockAccount(long userId)
-        {
-            var userIdStr = GetUserId(userId.ToString());
-
-            var user = (await _userManager.FindByIdAsync(userIdStr));
-
-            if (user == null)
-            {
-                return new BaseResponse<bool?>()
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = "User does not exist",
-                    Result = false
-                };
-            }
-
-            if (user.LockoutEnd is DateTimeOffset)
-            {
-                return new BaseResponse<bool?>()
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = $"User account is already locked out until {user.LockoutEnd}",
-                    Result = null
-                };
-            }
-
-            user.LockoutEnd = DateTimeOffset.UtcNow.AddDays(1);
-            var result = await _userManager.UpdateAsync(user);
-            if (!result.Succeeded)
-            {
-                return new BaseResponse<bool?>()
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"Cannot unlock user account",
-                    Result = false
-                };
-            }
-
-            _authContext.SaveChanges();
-            return new BaseResponse<bool?>
-            {
-                StatusCode = StatusCode.Success,
-                Message = "User account is locked",
-                Result = true
-            };
-        }
-
         public async Task<BaseResponse<UserGroupResponse>> AddOrUpdateAspNetRoles(UserGroupRequest request)
         {
             try
@@ -981,28 +895,6 @@ namespace Auth.Api.Services
             }
         }
 
-        public async Task<BaseResponse<AppUser>> GetCurrentUser(ClaimsPrincipal principal)
-        {
-            try
-            {
-                var user = await _userManager.GetUserAsync(principal);
-
-                return new BaseResponse<AppUser>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = user
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<AppUser>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
         public async Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user)
         {
             try
@@ -1024,27 +916,6 @@ namespace Auth.Api.Services
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
                 };
-            }
-        }
-        public async Task<RoleModel> GetAspNetRoleByName(string name)
-        {
-            try
-            {
-                var role = _roleManager.Roles.AsNoTracking().FirstOrDefault(c => c.Name == name);
-                var userCount = (await _userManager.GetUsersInRoleAsync(role.Name)).Count;
-
-                return new RoleModel
-                {
-                    Id = role.Id,
-                    Name = role.Name,
-                    NormalizedName = role.NormalizedName,
-                    ConcurrencyStamp = role.ConcurrencyStamp,
-                    UserCount = userCount
-                };
-            }
-            catch (Exception ex)
-            {
-                return null;
             }
         }
 
@@ -1093,69 +964,6 @@ namespace Auth.Api.Services
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
-                };
-            }
-        }
-        public async Task<BaseResponse<bool>> SetNickname(string userId, string nickname)
-        {
-            try
-            {
-                var exisitingNickname = _authContext.Users.FirstOrDefaultAsync(x => x.NickName == nickname);
-                var existingUser = await _userManager.FindByNameAsync(nickname);
-
-                if (existingUser != null || exisitingNickname != null)
-                {
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"Nickname already exists",
-                        Result = false
-                    };
-                }
-
-                var user = await _userManager.FindByIdAsync(GetUserId(userId));
-
-                if (user == null)
-                {
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"User does not exist",
-                        Result = false
-                    };
-                }
-
-                user.NickName = nickname;
-                var result = await _userManager.UpdateAsync(user);
-
-                if (!result.Succeeded)
-                {
-                    string errorMsg = "";
-                    foreach (IdentityError error in result.Errors)
-                        errorMsg += error.Description.ToString() + ",";
-
-                    return new BaseResponse<bool>
-                    {
-                        StatusCode = StatusCode.Error,
-                        Message = $"{errorMsg.TrimEnd(',')} "
-                    };
-                }
-
-                _authContext.SaveChanges();
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = true
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})",
-                    Result = false
                 };
             }
         }
@@ -1225,7 +1033,6 @@ namespace Auth.Api.Services
             }
             return id;
         }
-
         private string GetRoleId(string id)
         {
             if (long.TryParse(id, out long userGroupIdRef))

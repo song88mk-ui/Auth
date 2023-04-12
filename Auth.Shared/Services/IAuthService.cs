@@ -12,8 +12,6 @@ namespace Auth.Api.Services
         Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request);
         Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false);
         Task<BaseResponse<bool>> UpdateAspNetUserRole(UserRegisterRequest request);
-        Task<BaseResponse<bool?>> UnlockAccount(long userId);
-        Task<BaseResponse<bool?>> LockAccount(long userId);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);
         Task<BaseResponse<UserListResponse>> GetAspNetSubAccountList(SubAccountListRequest request);
@@ -27,11 +25,8 @@ namespace Auth.Api.Services
         Task<List<RoleModel>> GetAspNetRole();
         Task<BaseResponse<UserGroupResponse>> AddOrUpdateAspNetRoles(UserGroupRequest request);
         Task<BaseResponse<bool>> DeleteAspNetRoles(UserGroupRequest request);
-        Task<BaseResponse<AppUser>> GetCurrentUser(ClaimsPrincipal principal);
         Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user);
-        Task<RoleModel> GetAspNetRoleByName(string name);
         Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
-        Task<BaseResponse<bool>> SetNickname(string userId, string nickname);
         Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request);
     }
 }

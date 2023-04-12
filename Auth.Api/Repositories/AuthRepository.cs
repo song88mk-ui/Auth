@@ -393,11 +393,10 @@ namespace Auth.Api.Repositories
 
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
-                    var userToken = _authContext.UserTokens.AsNoTracking().Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
+                    var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider);
 
                     if (userToken == null)
                     {
-                        scope.Complete();
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -408,7 +407,17 @@ namespace Auth.Api.Repositories
 
                     if (userToken.Value != token)
                     {
-                        scope.Complete();
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Invalid Token.",
+                            Result = null
+                        };
+                    }
+
+                    var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
+                    if(user.LockoutEnd != null)
+                    {
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -496,7 +505,6 @@ namespace Auth.Api.Repositories
 
                     if (userToken == null)
                     {
-                        scope.Complete();
                         return new OperatorBaseResponse<object>
                         {
                             StatusCode = (int)StatusCode.Unauthorized,
