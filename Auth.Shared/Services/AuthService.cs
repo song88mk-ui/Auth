@@ -577,8 +577,8 @@ namespace Auth.Api.Services
                 {
                     if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
                         user.LockoutEnd = DateTime.UtcNow;
-                   
-                    if(request.Status.ToUpper() == "Normal".ToUpper() && user.LockoutEnd != null)
+
+                    if (request.Status.ToUpper() == "Normal".ToUpper() && user.LockoutEnd != null)
                         user.LockoutEnd = null;
                 }
 
@@ -633,12 +633,17 @@ namespace Auth.Api.Services
 
                         if(isValidOldPassword)
                         {
-                            result = await _userManager.ResetPasswordAsync(user, token, request.Password);
+                            if (oldPassword == request.Password)
+                            {
+                                return new BaseResponse<bool>
+                                {
+                                    StatusCode = StatusCode.Error,
+                                    Message = "Sorry, you entered an old password. Please choose a password you haven't used before."
+                                };
+                            }
                         }
-                        else
-                        {
-                            result = await _userManager.ResetPasswordAsync(user, oldPassword, request.Password);
-                        }
+
+                        result = await _userManager.ChangePasswordAsync(user, oldPassword, request.Password);
                     }
                     else
                     {
@@ -655,7 +660,7 @@ namespace Auth.Api.Services
                     return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Error,
-                        Message = $"{errorMsg.TrimEnd(',')} "
+                        Message = $"{errorMsg.TrimEnd(',')}"
                     };
                 }
 
