@@ -250,9 +250,9 @@ namespace Auth.Api.Controllers
             try
             {
                 var version = 0;
-                if (HttpContext.Request.Headers.ContainsKey("x-verion"))
+                if (HttpContext.Request.Headers.ContainsKey("x-version"))
                 {
-                    int.TryParse(HttpContext.Request.Headers["x-verion"].ToString(), out version);
+                    int.TryParse(HttpContext.Request.Headers["x-version"].ToString(), out version);
                 }
 
                 var result = new BaseResponse<PermissionResponse>();
