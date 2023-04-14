@@ -9,10 +9,15 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Runtime;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Transactions;
+using UAParser;
 
 namespace Auth.Api.Repositories
 {
@@ -206,10 +211,32 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
         {
             try
             {
+                if (content != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(userAgent) && (string.IsNullOrEmpty(content.BrowserInfo) && string.IsNullOrEmpty(content.BrowserVersion) && string.IsNullOrEmpty(content.OperatingSystem) && string.IsNullOrEmpty(content.IpAddress) && string.IsNullOrEmpty(content.Country)))
+                    {
+                        var uaParser = Parser.GetDefault();
+                        ClientInfo client = uaParser.Parse(userAgent);
+                        content.BrowserInfo = client.UA.Family.ToString();
+                        content.BrowserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
+                        content.OperatingSystem = client.OS.ToString();
+                        content.IpAddress = GetIPAddress();
+                        if (content.IpAddress == "::1")
+                        {
+                            content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
+                        }
+                        var country = GetUserCountryByIp(content.IpAddress);
+                        if (country != null)
+                        {
+                            content.Country = country;
+                        }
+                    }
+                }
+
                 // if main user get from role claims
                 // if sub user get from user claims
                 var user = await _userManager.FindByNameAsync(content.Username);
@@ -416,7 +443,7 @@ namespace Auth.Api.Repositories
                     }
 
                     var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
-                    if(user.LockoutEnd != null)
+                    if (user.LockoutEnd != null)
                     {
                         return new BaseResponse<TokenModel>
                         {
@@ -757,6 +784,39 @@ namespace Auth.Api.Repositories
                     OnlineUsers = userIdRefs.ToList()
                 }
             };
+        }
+        public static string GetUserCountryByIp(string ip)
+        {
+            IpInfo ipInfo = new IpInfo();
+            try
+            {
+                string info = new WebClient().DownloadString("http://ipinfo.io/" + ip);
+                ipInfo = JsonSerializer.Deserialize<IpInfo>(info, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                RegionInfo myRI1 = new RegionInfo(ipInfo.Country);
+                ipInfo.Country = myRI1.TwoLetterISORegionName;
+            }
+            catch (Exception)
+            {
+                ipInfo.Country = null;
+            }
+
+            return ipInfo.Country;
+        }
+        public string GetIPAddress()
+        {
+            String address = "";
+            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
+            using (WebResponse response = request.GetResponse())
+            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
+            {
+                address = stream.ReadToEnd();
+            }
+
+            int first = address.IndexOf("Address: ") + 9;
+            int last = address.LastIndexOf("</body>");
+            address = address.Substring(first, last - first);
+
+            return address;
         }
 
         #endregion

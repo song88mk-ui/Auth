@@ -4,8 +4,10 @@ using Auth.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.SqlServer.Server;
 using Newtonsoft.Json.Linq;
 using System.Net;
+using UAParser;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
@@ -23,14 +25,16 @@ namespace Auth.Api.Controllers
         /// <summary>
         /// Loging credential
         /// </summary>
-        /// <param name="usersdata"></param>
+        /// <param name="userdata"></param>
         /// <returns></returns>
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginModel usersdata)
+        public async Task<IActionResult> Login(LoginModel userdata)
         {
             try
             {
-                var result = await this._authRepository.Login(usersdata);
+                var userAgent = HttpContext.Request.Headers["user-agent"].FirstOrDefault();
+
+                var result = await this._authRepository.Login(userdata, userAgent != null ? userAgent : "");
 
                 switch (result.StatusCode)
                 {
@@ -117,7 +121,7 @@ namespace Auth.Api.Controllers
                 var agentHeaderRequest = HttpContext.Request.Headers["x-is-agent"].FirstOrDefault();
 
                 var isAgent = false;
-                if(agentHeaderRequest != null)
+                if (agentHeaderRequest != null)
                 {
                     isAgent = true;
                     bool.TryParse(agentHeaderRequest, out isAgent);
@@ -198,7 +202,7 @@ namespace Auth.Api.Controllers
                     Message = "Missing authorization"
                 };
 
-                if(HttpContext.Request.Headers.ContainsKey("x-operator-token"))
+                if (HttpContext.Request.Headers.ContainsKey("x-operator-token"))
                 {
                     var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
                     result = await this._authRepository.Logout(token, true);
