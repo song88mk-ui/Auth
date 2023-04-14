@@ -117,7 +117,7 @@ namespace Auth.Api.Repositories
                             permissions = (await GetPermissionList(isSubUser, 0, "10")).Result.Permissions ?? new List<PermissionModel>();
                         }
 
-                        userClaims = _authContext.UserClaims.Where(x => x.UserId == userId)
+                        userClaims = _authContext.UserClaims.Where(x => x.UserId == userId && x.ClaimValue != "0")
                             .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
                     }
                     else
