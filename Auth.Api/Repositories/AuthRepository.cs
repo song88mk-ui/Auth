@@ -93,7 +93,6 @@ namespace Auth.Api.Repositories
             if (role != null && role.Name.ToLower() == "super admin")
             {
                 claims = (from permissions in _authContext.Permission
-                          where permissions.IsSubUser == false
                           select new Claim(permissions.ClaimType, "1", $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                 clients = claims.Where(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')).Select(x => new Claim(x.Type, "")).FirstOrDefault();
@@ -104,7 +103,7 @@ namespace Auth.Api.Repositories
                 {
                     claims = (from userClaims in _authContext.UserClaims
                               join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where userClaims.UserId == userId && userClaims.ClaimValue != "0"
+                              where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true
                               select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                     clients = (from roleClaims in _authContext.RoleClaims
