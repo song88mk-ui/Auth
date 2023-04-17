@@ -519,11 +519,16 @@ namespace Auth.Api.Services
                             claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                             await _userManager.AddClaimsAsync(user, claims);
                         }
-                    } else if (string.IsNullOrWhiteSpace(request.RoleId))
-                    {
-                        request.RoleName = "Default";
                     }
-                    var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+                    else
+                    {
+                        if (string.IsNullOrWhiteSpace(request.RoleId))
+                        {
+                            request.RoleName = "Default";
+                        }
+
+                        var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+                    }
 
                     _authContext.SaveChanges();
                     scope.Complete();
