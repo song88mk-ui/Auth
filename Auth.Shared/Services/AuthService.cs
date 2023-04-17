@@ -519,9 +519,7 @@ namespace Auth.Api.Services
                             claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                             await _userManager.AddClaimsAsync(user, claims);
                         }
-                    }
-
-                    if (string.IsNullOrWhiteSpace(request.RoleId))
+                    } else if (string.IsNullOrWhiteSpace(request.RoleId))
                     {
                         request.RoleName = "Default";
                     }
