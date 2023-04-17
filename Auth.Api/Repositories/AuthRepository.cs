@@ -149,7 +149,7 @@ namespace Auth.Api.Repositories
 
             token.Subject.AddClaim(new Claim("Permission", role != null ? role.Id.ToString() : string.Empty));
             token.Subject.AddClaim(new Claim("RoleId", role != null ? role.Id.ToString() : string.Empty));
-            token.Subject.AddClaim(new Claim("RoleName", role != null ? role.Id.ToString() : string.Empty));
+            token.Subject.AddClaim(new Claim("RoleName", role != null ? role.Name.ToString() : string.Empty));
 
             return token;
         }
