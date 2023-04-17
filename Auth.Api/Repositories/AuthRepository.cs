@@ -8,11 +8,9 @@ using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Diagnostics;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using System.Runtime;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -55,7 +53,7 @@ namespace Auth.Api.Repositories
             _userIdentityService = userIdentityService;
 
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
-            Issuer = _configuration["JWT:Issuer"];
+            Issuer = _configuration["JWT:Issuer"] ?? string.Empty;
             _memCache = memCache;
         }
 
@@ -83,86 +81,66 @@ namespace Auth.Api.Repositories
             token.Subject.AddClaim(new Claim("Nickname", nickname ?? string.Empty));
 
             var isSubUser = false;
-            var isAdmin = false;
 
             if (mainUserId != null)
                 if (!string.IsNullOrWhiteSpace(mainUserId))
                     isSubUser = true;
 
-            var userClaims = new List<ClaimModel>();
-
-            var permissions = new List<PermissionModel>();
-            permissions = (await GetPermissionList(isSubUser, 0)).Result.Permissions ?? new List<PermissionModel>();
+            var claims = new List<Claim>();
+            Claim? clients = null;
+            var hasAdmin = true;
 
             if (role != null && role.Name.ToLower() == "super admin")
             {
-                userClaims = permissions.Select(p => new ClaimModel
-                {
-                    ClaimType = p.Id,
-                    ClaimValue = p.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", ".") ? "" : "1"
-                }).ToList();
-                if (userClaims.Any())
-                {
-                    permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
-                }
+                claims = (from permissions in _authContext.Permission
+                          where permissions.IsSubUser == false
+                          select new Claim(permissions.ClaimType, "1", $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
-                isAdmin = true;
+                clients = claims.Where(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')).Select(x => new Claim(x.Type, "")).FirstOrDefault();
             }
             else
             {
                 if (isSubUser)
                 {
-                    if (provider == ((int)Application.AgentManagementSystem).ToString())
-                    {
-                        permissions = (await GetPermissionList(isSubUser, 0, $"{(int)PermissionAccess.AgentManagement}")).Result.Permissions ?? new List<PermissionModel>();
-                    }
+                    claims = (from userClaims in _authContext.UserClaims
+                              join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
+                              where userClaims.UserId == userId && userClaims.ClaimValue != "0"
+                              select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
-                    userClaims = _authContext.UserClaims.Where(x => x.UserId == userId && x.ClaimValue != "0")
-                        .Select(x => new ClaimModel { ClaimType = x.ClaimType, ClaimValue = x.ClaimValue }).ToList();
+                    clients = (from roleClaims in _authContext.RoleClaims
+                               join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
+                               join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
+                               where roles.UserId == mainUserId && permissions.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')
+                               select new Claim(permissions.ClaimType, roleClaims.ClaimValue)).FirstOrDefault();
                 }
                 else
                 {
-                    userClaims = _authContext.RoleClaims
-                        .Join(_authContext.UserRoles, claims => claims.RoleId, roleClaims => roleClaims.RoleId, (claims, roleClaims) => new { Claims = claims, RoleClaims = roleClaims })
-                        .Where(p => p.RoleClaims.UserId == userId && p.Claims.ClaimValue != "0")
-                        .Select(p => new ClaimModel { ClaimType = p.Claims.ClaimType, ClaimValue = p.Claims.ClaimValue }).ToList();
-                }
-                if (userClaims.Any())
-                {
-                    permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
+                    claims = (from roleClaims in _authContext.RoleClaims
+                              join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
+                              join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
+                              where roleClaims.ClaimValue != "0" && roles.UserId == userId
+                              select new Claim(permissions.ClaimType, roleClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+
+                    clients = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.'));
                 }
 
-                isAdmin = permissions.Any(p => p.CategoryId == (int)PermissionAccess.Admin) ? true : false;
+                hasAdmin = claims.Any(x => x.Type.StartsWith($"{PermissionAccess.Admin.ToString()}."));
             }
 
-            var hasClientAccess = false;
-            foreach (var item in userClaims)
+            var subUserAccess = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_SubUsers.ToString().Replace("_", "."));
+
+            if (subUserAccess != null && hasAdmin)
             {
-                var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
-
-                //if (userPermission.CategoryId == 0)
-                //    continue;
-
-                if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
-                {
-                    token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
-
-                    if(!string.IsNullOrEmpty(item.ClaimValue.ToString()))
-                        hasClientAccess = true;
-                }
-                else
-                {
-
-                    if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_SubUsers.ToString().Replace("_", "."))
-                    {
-                        if(isAdmin == false && hasClientAccess)
-                            token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
-                    }
-                    else
-                        token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
-
-                }
+                claims.Remove(subUserAccess);
             }
+
+            if (clients != null)
+            {
+                claims.Remove(clients);
+                claims.Add(new Claim("ClientCodes", clients.Value));
+            }
+
+            token.Subject.AddClaims(claims);
 
             token.Subject.AddClaim(new Claim("Permission", role != null ? role.Id.ToString() : string.Empty));
             token.Subject.AddClaim(new Claim("RoleId", role != null ? role.Id.ToString() : string.Empty));
