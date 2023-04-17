@@ -83,6 +83,7 @@ namespace Auth.Api.Repositories
             token.Subject.AddClaim(new Claim("Nickname", nickname ?? string.Empty));
 
             var isSubUser = false;
+            var isAdmin = false;
 
             if (mainUserId != null)
                 if (!string.IsNullOrWhiteSpace(mainUserId))
@@ -104,6 +105,8 @@ namespace Auth.Api.Repositories
                 {
                     permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
                 }
+
+                isAdmin = true;
             }
             else
             {
@@ -111,7 +114,7 @@ namespace Auth.Api.Repositories
                 {
                     if (provider == ((int)Application.AgentManagementSystem).ToString())
                     {
-                        permissions = (await GetPermissionList(isSubUser, 0, "10")).Result.Permissions ?? new List<PermissionModel>();
+                        permissions = (await GetPermissionList(isSubUser, 0, $"{(int)PermissionAccess.AgentManagement}")).Result.Permissions ?? new List<PermissionModel>();
                     }
 
                     userClaims = _authContext.UserClaims.Where(x => x.UserId == userId && x.ClaimValue != "0")
@@ -128,8 +131,11 @@ namespace Auth.Api.Repositories
                 {
                     permissions = permissions.Where(x => userClaims.Select(claim => claim.ClaimType.ToLower()).ToList().Contains(x.Id.ToLower())).ToList();
                 }
+
+                isAdmin = permissions.Any(p => p.CategoryId == (int)PermissionAccess.Admin) ? true : false;
             }
 
+            var hasClientAccess = false;
             foreach (var item in userClaims)
             {
                 var userPermission = permissions.Where(x => x.Id.ToLower() == item.ClaimType.ToLower()).FirstOrDefault() ?? new PermissionModel();
@@ -140,10 +146,21 @@ namespace Auth.Api.Repositories
                 if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace("_", "."))
                 {
                     token.Subject.AddClaim(new Claim("ClientCodes", item.ClaimValue.ToString()));
+
+                    if(!string.IsNullOrEmpty(item.ClaimValue.ToString()))
+                        hasClientAccess = true;
                 }
                 else
                 {
-                    token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
+
+                    if (userPermission.ClaimType == Shared.Enums.ClaimTypes.SBC_SubUsers.ToString().Replace("_", "."))
+                    {
+                        if(isAdmin == false && hasClientAccess)
+                            token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
+                    }
+                    else
+                        token.Subject.AddClaim(new Claim(userPermission.ClaimType.ToString(), item.ClaimValue.ToString(), $"{userPermission.HasReadOnly}.{userPermission.SortOrder}"));
+
                 }
             }
 
