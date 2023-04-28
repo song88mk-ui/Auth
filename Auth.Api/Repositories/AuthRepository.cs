@@ -179,6 +179,7 @@ namespace Auth.Api.Repositories
                 _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
             }
 
+            _authContext.SaveChanges();
             Task.Run(() =>
             {
                 if (loginModel != null)
@@ -194,6 +195,7 @@ namespace Auth.Api.Repositories
                         Country = loginModel.Country,
                         Date = DateTime.UtcNow
                     });
+                    _authContext.SaveChanges();
                 }
             });
         }
