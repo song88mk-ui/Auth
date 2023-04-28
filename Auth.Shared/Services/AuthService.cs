@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Transactions;
 
@@ -599,10 +600,12 @@ namespace Auth.Api.Services
 
                 var oldRoles = await _userManager.GetRolesAsync(user);
 
-                if (!string.IsNullOrWhiteSpace(request.RoleId))
+                if (!string.IsNullOrWhiteSpace(request.RoleId) && (user.MainUserId == null || string.IsNullOrEmpty(user.MainUserId)))
                 {
                     var removeRoles = await _userManager.RemoveFromRolesAsync(user, oldRoles);
                     var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
+
+                    _memCache.DeleteCache($"uc:{userId}");
                 }
 
                 var result = await _userManager.UpdateAsync(user);
@@ -632,6 +635,8 @@ namespace Auth.Api.Services
                             claims = request.Claims.Select(s => new Claim(s.ClaimType, s.ClaimValue)).ToList();
                             await _userManager.AddClaimsAsync(user, claims);
                         }
+
+                        _memCache.DeleteCache($"uc:{userId}");
                     }
 
                 if (!string.IsNullOrEmpty(request.Password))
@@ -732,6 +737,9 @@ namespace Auth.Api.Services
                 }
 
                 _authContext.SaveChanges();
+
+                _memCache.DeleteCache($"uc:{request.UserId}");
+
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
@@ -812,9 +820,14 @@ namespace Auth.Api.Services
                         }
                     }
 
-
                     _authContext.SaveChanges();
                     scope.Complete();
+
+                    var users = _authContext.UserRoles.Where(x => x.RoleId == request.UserGroupId).Select(x => x.UserId).ToList();
+                    foreach (string inputValue in users)
+                    {
+                        _memCache.DeleteCache($"uc:{inputValue}");
+                    }
                 }
 
                 return new BaseResponse<UserGroupResponse>
@@ -878,7 +891,12 @@ namespace Auth.Api.Services
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')} "
                     };
+                }
 
+                var users = _authContext.UserRoles.Where(x => x.RoleId == request.UserGroupId).Select(x => x.UserId).ToList();
+                foreach (string inputValue in users)
+                {
+                    _memCache.DeleteCache($"uc:{inputValue}");
                 }
 
                 return new BaseResponse<bool>

@@ -86,57 +86,63 @@ namespace Auth.Api.Repositories
                 if (!string.IsNullOrWhiteSpace(mainUserId))
                     isSubUser = true;
 
-            var claims = new List<Claim>();
             Claim? clients = null;
-            var hasAdmin = true;
 
-            if (role != null && role.Name.ToLower() == "super admin")
-            {
-                claims = (from permissions in _authContext.Permission
-                          select new Claim(permissions.ClaimType, "1", $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+            var claims = _memCache.GetCache<List<Claim>>($"uc:{userId}");
 
-                clients = claims.Where(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')).Select(x => new Claim(x.Type, "")).FirstOrDefault();
-            }
-            else
+            if(claims == null )
             {
-                if (isSubUser)
+                var hasAdmin = true;
+
+                if (role != null && role.Name.ToLower() == "super admin")
                 {
-                    claims = (from userClaims in _authContext.UserClaims
-                              join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true
-                              select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+                    claims = (from permissions in _authContext.Permission
+                              select new Claim(permissions.ClaimType, "1", $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
-                    clients = (from roleClaims in _authContext.RoleClaims
-                               join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
-                               join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                               where roles.UserId == mainUserId && permissions.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')
-                               select new Claim(permissions.ClaimType, roleClaims.ClaimValue)).FirstOrDefault();
+                    clients = claims.Where(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')).Select(x => new Claim(x.Type, "")).FirstOrDefault();
                 }
                 else
                 {
-                    claims = (from roleClaims in _authContext.RoleClaims
-                              join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
-                              join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where roleClaims.ClaimValue != "0" && roles.UserId == userId
-                              select new Claim(permissions.ClaimType, roleClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+                    if (isSubUser)
+                    {
+                        claims = (from userClaims in _authContext.UserClaims
+                                  join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
+                                  where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true
+                                  select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
-                    clients = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.'));
+                        clients = (from roleClaims in _authContext.RoleClaims
+                                   join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
+                                   join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
+                                   where roles.UserId == mainUserId && permissions.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')
+                                   select new Claim(permissions.ClaimType, roleClaims.ClaimValue)).FirstOrDefault();
+                    }
+                    else
+                    {
+                        claims = (from roleClaims in _authContext.RoleClaims
+                                  join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
+                                  join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
+                                  where roleClaims.ClaimValue != "0" && roles.UserId == userId
+                                  select new Claim(permissions.ClaimType, roleClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+
+                        clients = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.'));
+                    }
+
+                    hasAdmin = claims.Any(x => x.Type.StartsWith($"{PermissionAccess.Admin.ToString()}."));
                 }
 
-                hasAdmin = claims.Any(x => x.Type.StartsWith($"{PermissionAccess.Admin.ToString()}."));
-            }
+                var subUserAccess = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_SubUsers.ToString().Replace("_", "."));
 
-            var subUserAccess = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_SubUsers.ToString().Replace("_", "."));
+                if (subUserAccess != null && hasAdmin)
+                {
+                    claims.Remove(subUserAccess);
+                }
 
-            if (subUserAccess != null && hasAdmin)
-            {
-                claims.Remove(subUserAccess);
-            }
-
-            if (clients != null)
-            {
-                claims.Remove(clients);
-                claims.Add(new Claim("ClientCodes", clients.Value));
+                if (clients != null)
+                {
+                    claims.Remove(clients);
+                    claims.Add(new Claim("ClientCodes", clients.Value));
+                }
+                _memCache.AddOrUpdateCache($"uc:{userId}", claims, DateTimeOffset.UtcNow.AddDays(7));
             }
 
             token.Subject.AddClaims(claims);
