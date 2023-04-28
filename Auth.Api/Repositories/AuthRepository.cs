@@ -149,39 +149,38 @@ namespace Auth.Api.Repositories
         }
         private void SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
-            var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
-            var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-
-            if (oldToken != null)
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
-                oldToken.Value = token;
-                oldToken.OperatorToken = operatorToken;
-                oldToken.SessionExpirationDate = sessionExpirationDate;
+                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
+                var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
-                _authContext.UserTokens.Update(oldToken);
-
-                _memCache.AddOrUpdateCache($"ot:{operatorToken}", oldToken, DateTimeOffset.UtcNow.AddDays(1));
-            }
-            else
-            {
-                var newToken = new AppToken
+                if (oldToken != null)
                 {
-                    UserId = user.Id,
-                    LoginProvider = loginModel.Provider,
-                    Name = loginModel.Username,
-                    Value = token,
-                    OperatorToken = operatorToken,
-                    SessionExpirationDate = sessionExpirationDate
-                };
+                    oldToken.Value = token;
+                    oldToken.OperatorToken = operatorToken;
+                    oldToken.SessionExpirationDate = sessionExpirationDate;
 
-                _authContext.UserTokens.Add(newToken);
+                    _authContext.UserTokens.Update(oldToken);
 
-                _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
-            }
+                    _memCache.AddOrUpdateCache($"ot:{operatorToken}", oldToken, DateTimeOffset.UtcNow.AddDays(1));
+                }
+                else
+                {
+                    var newToken = new AppToken
+                    {
+                        UserId = user.Id,
+                        LoginProvider = loginModel.Provider,
+                        Name = loginModel.Username,
+                        Value = token,
+                        OperatorToken = operatorToken,
+                        SessionExpirationDate = sessionExpirationDate
+                    };
 
-            _authContext.SaveChanges();
-            Task.Run(() =>
-            {
+                    _authContext.UserTokens.Add(newToken);
+
+                    _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
+                }
+
                 if (loginModel != null)
                 {
                     _authContext.ActivityLog.Add(new ActivityLog()
@@ -195,9 +194,11 @@ namespace Auth.Api.Repositories
                         Country = loginModel.Country,
                         Date = DateTime.UtcNow
                     });
-                    _authContext.SaveChanges();
                 }
-            });
+
+                _authContext.SaveChanges();
+                scope.Complete();
+            }
         }
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
