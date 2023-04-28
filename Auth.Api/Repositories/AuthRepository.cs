@@ -149,38 +149,38 @@ namespace Auth.Api.Repositories
         }
         private void SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
-            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+            var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
+            var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+
+            if (oldToken != null)
             {
-                var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
-                var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                oldToken.Value = token;
+                oldToken.OperatorToken = operatorToken;
+                oldToken.SessionExpirationDate = sessionExpirationDate;
 
-                if (oldToken != null)
+                _authContext.UserTokens.Update(oldToken);
+
+                _memCache.AddOrUpdateCache($"ot:{operatorToken}", oldToken, DateTimeOffset.UtcNow.AddDays(1));
+            }
+            else
+            {
+                var newToken = new AppToken
                 {
-                    oldToken.Value = token;
-                    oldToken.OperatorToken = operatorToken;
-                    oldToken.SessionExpirationDate = sessionExpirationDate;
+                    UserId = user.Id,
+                    LoginProvider = loginModel.Provider,
+                    Name = loginModel.Username,
+                    Value = token,
+                    OperatorToken = operatorToken,
+                    SessionExpirationDate = sessionExpirationDate
+                };
 
-                    _authContext.UserTokens.Update(oldToken);
+                _authContext.UserTokens.Add(newToken);
 
-                    _memCache.AddOrUpdateCache($"ot:{operatorToken}", oldToken, DateTimeOffset.UtcNow.AddDays(1));
-                }
-                else
-                {
-                    var newToken = new AppToken
-                    {
-                        UserId = user.Id,
-                        LoginProvider = loginModel.Provider,
-                        Name = loginModel.Username,
-                        Value = token,
-                        OperatorToken = operatorToken,
-                        SessionExpirationDate = sessionExpirationDate
-                    };
+                _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
+            }
 
-                    _authContext.UserTokens.Add(newToken);
-
-                    _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
-                }
-
+            Task.Run(() =>
+            {
                 if (loginModel != null)
                 {
                     _authContext.ActivityLog.Add(new ActivityLog()
@@ -195,10 +195,7 @@ namespace Auth.Api.Repositories
                         Date = DateTime.UtcNow
                     });
                 }
-
-                _authContext.SaveChanges();
-                scope.Complete();
-            }
+            });
         }
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
@@ -276,13 +273,13 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                var accessToken = "";
+                var accessToken = string.Empty;
 
-                var role = (await _userIdentityService.GetCurrentUserRole(user)).Result;
+                var role = await _userIdentityService.GetCurrentUserRole(user);
 
-                var token = GenerateToken(user.Id, role, content.Provider, content.Username, user.MainUserId, user.NickName, user.IdRef, mainUserIdRef);
+                var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, user.IdRef, mainUserIdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
-                accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token.Result));
+                accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token));
 
                 var operatorToken = Guid.NewGuid().ToString();
                 SaveToken(user, accessToken, operatorToken, content);
