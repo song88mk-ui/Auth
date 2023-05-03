@@ -2,6 +2,7 @@ using Auth.Api.ActionFilters;
 using Auth.Api.Identity;
 using Auth.Api.Repositories;
 using Auth.Api.Services;
+using Auth.Api.Telemetry;
 using Auth.Shared.Data.Auth;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
@@ -12,12 +13,73 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using System.Diagnostics.Metrics;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Services.BuildServiceProvider().GetService<IConfiguration>();
+
+// Telemetry
+Action<ResourceBuilder> configureResource = r => r.AddService(
+    serviceName: String.Format("{0}/{1}", configuration["Telemetry:Environment"], "Authentication-API"),
+    serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
+    serviceInstanceId: Environment.MachineName);
+
+builder.Services.AddSingleton<Instrumentation>();
+
+if (Convert.ToBoolean(configuration["Telemetry:Enabled"]))
+{
+  builder.Services.AddOpenTelemetry()
+    .ConfigureResource(configureResource)
+    .WithTracing(tracing =>
+    {
+      tracing
+        .AddSource(Instrumentation.ActivitySourceName)
+        .SetSampler(new AlwaysOnSampler())
+        .AddHttpClientInstrumentation()
+        .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
+        {
+          return !httpContext.Request.Path.ToString().StartsWith("/swagger");
+        })
+        .AddSqlClientInstrumentation();
+
+
+      builder.Services.Configure<AspNetCoreInstrumentationOptions>(builder.Configuration.GetSection("Telemetry:AspNetCoreInstrumentation"));
+
+
+      tracing.AddOtlpExporter(otlpOptions =>
+      {
+        otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+        otlpOptions.Endpoint = new Uri(builder.Configuration["Telemetry:Collector"]+"/v1/traces");
+      });
+
+
+    })
+    .WithMetrics(metrics =>
+    {
+      metrics
+        .AddMeter(Instrumentation.MeterName)
+        .AddRuntimeInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddAspNetCoreInstrumentation();
+
+      metrics.AddOtlpExporter(otlpOptions =>
+      {
+        otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+        otlpOptions.Endpoint = new Uri(configuration["Telemetry:Collector"]+"/v1/metrics");
+      });
+
+    });
+
+}
 
 // Add services to the container.
 builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
@@ -135,7 +197,7 @@ app.UseSwaggerUI(option =>
 app.UseCors();
 app.UseAuthorization();
 app.UseAuthentication();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.MapControllers();
 app.Run();
