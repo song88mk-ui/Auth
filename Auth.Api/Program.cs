@@ -197,7 +197,7 @@ app.UseSwaggerUI(option =>
 app.UseCors();
 app.UseAuthorization();
 app.UseAuthentication();
-//app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 
 app.MapControllers();
 app.Run();
