@@ -1,4 +1,5 @@
 ﻿using Auth.Api.Services;
+using Auth.Api.Telemetry;
 using Auth.Shared.Data.Auth;
 using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
@@ -8,6 +9,8 @@ using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
@@ -28,6 +31,9 @@ namespace Auth.Api.Repositories
         private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
+        private readonly ActivitySource activitySource;
+        private readonly Counter<long> loginSuccessCounter;
+        private readonly Counter<long> loginFailureCounter;
 
         #endregion
 
@@ -45,7 +51,8 @@ namespace Auth.Api.Repositories
             UserManager<AppUser> userManager,
             IConfiguration config,
             IAuthService userIdentityService,
-            IMemCache memCache)
+            IMemCache memCache,
+            Instrumentation instrumentation)
         {
             _authContext = authContext;
             _userManager = userManager;
@@ -55,6 +62,9 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"] ?? string.Empty;
             _memCache = memCache;
+            this.activitySource = instrumentation.ActivitySource;
+            this.loginSuccessCounter = instrumentation.LoginSuccessCounter;
+            this.loginFailureCounter = instrumentation.LoginFailureCounter;
         }
 
         #endregion
@@ -209,6 +219,8 @@ namespace Auth.Api.Repositories
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
         {
+            using var activity = this.activitySource.StartActivity("login");
+
             try
             {
                 if (content != null)
@@ -240,6 +252,8 @@ namespace Auth.Api.Repositories
 
                 if (user == null)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, "account not found");
+                    this.loginFailureCounter.Add(1);
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.Username_Not_Found,
@@ -250,6 +264,9 @@ namespace Auth.Api.Repositories
 
                 if (user.AppId.ToString() != content.Provider)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, "account not found");
+                    this.loginFailureCounter.Add(1);
+
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.Unauthorized,
@@ -260,6 +277,9 @@ namespace Auth.Api.Repositories
 
                 if (user.LockoutEnd != null)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, "account is locked");
+                    this.loginFailureCounter.Add(1);
+
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.User_Is_Locked,
@@ -274,6 +294,9 @@ namespace Auth.Api.Repositories
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, "incorrect password");
+                    this.loginFailureCounter.Add(1);
+
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.Invalid_Password,
@@ -293,6 +316,9 @@ namespace Auth.Api.Repositories
                 var operatorToken = Guid.NewGuid().ToString();
                 SaveToken(user, accessToken, operatorToken, content);
 
+                activity?.SetStatus(ActivityStatusCode.Ok);
+                this.loginSuccessCounter.Add(1);
+
                 return new BaseResponse<TokenModel>
                 {
                     StatusCode = StatusCode.Success,
@@ -306,6 +332,9 @@ namespace Auth.Api.Repositories
             }
             catch (Exception ex)
             {
+              activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+              this.loginFailureCounter.Add(1);
+
                 return new BaseResponse<TokenModel>
                 {
                     StatusCode = StatusCode.Error,
@@ -316,6 +345,8 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
+            using var activity = this.activitySource.StartActivity("logout");
+
             if (string.IsNullOrWhiteSpace(token))
             {
                 return new BaseResponse<bool>
@@ -363,6 +394,8 @@ namespace Auth.Api.Repositories
                 scope.Complete();
             }
 
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
             return new BaseResponse<bool>
             {
                 StatusCode = StatusCode.Success,
@@ -372,6 +405,9 @@ namespace Auth.Api.Repositories
         }
         public BaseResponse<TokenModel> Authenticate(string token)
         {
+
+            using var activity = this.activitySource.StartActivity("authenticate");
+
             try
             {
                 SecurityToken jwtToken = null;
@@ -420,6 +456,7 @@ namespace Auth.Api.Repositories
 
                     if (userToken == null)
                     {
+                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -430,6 +467,7 @@ namespace Auth.Api.Repositories
 
                     if (userToken.Value != token)
                     {
+                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -441,6 +479,7 @@ namespace Auth.Api.Repositories
                     var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
                     if (user.LockoutEnd != null)
                     {
+                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -462,6 +501,8 @@ namespace Auth.Api.Repositories
 
                     scope.Complete();
 
+                    activity?.SetStatus(ActivityStatusCode.Ok);
+
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.Success,
@@ -477,6 +518,7 @@ namespace Auth.Api.Repositories
             }
             catch (Exception ex)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                 return new BaseResponse<TokenModel>
                 {
                     StatusCode = StatusCode.Error,
