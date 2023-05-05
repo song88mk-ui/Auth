@@ -47,7 +47,8 @@ if (Convert.ToBoolean(configuration["Telemetry:Enabled"]))
         .AddHttpClientInstrumentation()
         .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
         {
-          return !httpContext.Request.Path.ToString().StartsWith("/swagger");
+          // observe /v1(/.*) only
+          return httpContext.Request.Path.ToString().StartsWith("/v1");
         })
         .AddSqlClientInstrumentation();
 
