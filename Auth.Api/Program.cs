@@ -25,17 +25,16 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-var configuration = builder.Services.BuildServiceProvider().GetService<IConfiguration>();
 
 // Telemetry
 Action<ResourceBuilder> configureResource = r => r.AddService(
-    serviceName: String.Format("{0}/{1}", configuration["Telemetry:Environment"], "Authentication-API"),
+    serviceName: String.Format("{0}/{1}", builder.Configuration["Telemetry:Environment"], "Authentication-API"),
     serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
     serviceInstanceId: Environment.MachineName);
 
 builder.Services.AddSingleton<Instrumentation>();
 
-if (Convert.ToBoolean(configuration["Telemetry:Enabled"]))
+if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
 {
   builder.Services.AddOpenTelemetry()
     .ConfigureResource(configureResource)
@@ -75,7 +74,7 @@ if (Convert.ToBoolean(configuration["Telemetry:Enabled"]))
       metrics.AddOtlpExporter(otlpOptions =>
       {
         otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
-        otlpOptions.Endpoint = new Uri(configuration["Telemetry:Collector"]+"/v1/metrics");
+        otlpOptions.Endpoint = new Uri(builder.Configuration["Telemetry:Collector"]+"/v1/metrics");
       });
 
     });
@@ -83,7 +82,7 @@ if (Convert.ToBoolean(configuration["Telemetry:Enabled"]))
 }
 
 // Add services to the container.
-builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
+builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(builder.Configuration["Context:Auth"]));
 builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<AuthContext>()
     //.AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>))
     .AddDefaultTokenProviders();
@@ -166,9 +165,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = configuration["JWT:Issuer"],
-        ValidAudience = configuration["JWT:Issuer"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Key"]))
+        ValidIssuer = builder.Configuration["JWT:Issuer"],
+        ValidAudience = builder.Configuration["JWT:Issuer"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Key"]))
     };
 });
 
