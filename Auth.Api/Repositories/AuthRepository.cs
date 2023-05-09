@@ -90,7 +90,7 @@ namespace Auth.Api.Repositories
 
             var claims = _memCache.GetCache<List<Claim>>($"uc:{userId}");
 
-            if(claims == null )
+            if (claims == null)
             {
                 var hasAdmin = true;
 
@@ -207,29 +207,29 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "", string ipAddress = "")
         {
             try
             {
                 if (content != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(userAgent) && (string.IsNullOrEmpty(content.BrowserInfo) && string.IsNullOrEmpty(content.BrowserVersion) && string.IsNullOrEmpty(content.OperatingSystem) && string.IsNullOrEmpty(content.IpAddress) && string.IsNullOrEmpty(content.Country)))
+                    if (!string.IsNullOrEmpty(ipAddress))
+                    {
+                        content.IpAddress = ipAddress.Trim();
+                        if (content.IpAddress == "::1")
+                        {
+                            content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
+                        }
+
+                        content.Country = GetUserCountryByIp(content.IpAddress);
+                    }
+                    if (!string.IsNullOrWhiteSpace(userAgent) || (string.IsNullOrEmpty(content.BrowserInfo) || string.IsNullOrEmpty(content.BrowserVersion) || string.IsNullOrEmpty(content.OperatingSystem)))
                     {
                         var uaParser = Parser.GetDefault();
                         ClientInfo client = uaParser.Parse(userAgent);
                         content.BrowserInfo = client.UA.Family.ToString();
                         content.BrowserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
                         content.OperatingSystem = client.OS.ToString();
-                        content.IpAddress = GetIPAddress();
-                        if (content.IpAddress == "::1")
-                        {
-                            content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
-                        }
-                        var country = GetUserCountryByIp(content.IpAddress);
-                        if (country != null)
-                        {
-                            content.Country = country;
-                        }
                     }
                 }
 
