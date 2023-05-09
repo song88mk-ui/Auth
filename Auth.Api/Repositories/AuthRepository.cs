@@ -197,17 +197,11 @@ namespace Auth.Api.Repositories
                     _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
                 }
 
-                var browserInfo = "";
-                var browserVersion = "";
-                var operatingSystem = "";
-                if (!string.IsNullOrEmpty(loginModel.UserAgent))
-                {
-                    var uaParser = Parser.GetDefault();
-                    ClientInfo client = uaParser.Parse(loginModel.UserAgent);
-                    browserInfo = client.UA.Family.ToString();
-                    browserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
-                    operatingSystem = client.OS.ToString();
-                }
+                var uaParser = Parser.GetDefault();
+                ClientInfo client = uaParser.Parse(loginModel.UserAgent);
+                var browserInfo = client.UA.Family.ToString();
+                var browserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
+                var operatingSystem = client.OS.ToString();
 
                 if (loginModel != null)
                 {
