@@ -197,11 +197,6 @@ namespace Auth.Api.Repositories
                     _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
                 }
 
-                var uaParser = Parser.GetDefault();
-                ClientInfo client = uaParser.Parse(loginModel.UserAgent);
-                var browserInfo = client.UA.Family.ToString();
-                var browserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
-                var operatingSystem = client.OS.ToString();
 
                 if (loginModel != null)
                 {
@@ -209,9 +204,7 @@ namespace Auth.Api.Repositories
                     {
                         UserId = user.Id,
                         Token = token,
-                        BrowserInfo = browserInfo,
-                        BrowserVersion = browserVersion,
-                        OperatingSystem = operatingSystem,
+                        UserAgent = loginModel.UserAgent,
                         IpAddress = loginModel.IpAddress,
                         Country = loginModel.Country,
                         Date = DateTime.UtcNow
@@ -743,13 +736,11 @@ namespace Auth.Api.Repositories
                 userId = GetUserId(userId);
 
                 var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).OrderByDescending(x => x.Date)
-                    .Select(x => new ActivityLogModel
+                    .Select(x => new ActivityLog
                     {
                         UserId = x.UserId,
                         Token = x.Token,
-                        BrowserInfo = x.BrowserInfo,
-                        BrowserVersion = x.BrowserVersion,
-                        OperatingSystem = x.OperatingSystem,
+                        UserAgent = x.UserAgent,
                         IpAddress = x.IpAddress,
                         Country = x.Country,
                         Date = DateTime.Parse(x.Date.ToString())
@@ -758,9 +749,7 @@ namespace Auth.Api.Repositories
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     activityLog = activityLog.Where(x =>
-                    x.BrowserInfo.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    x.BrowserVersion.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    x.OperatingSystem.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    x.UserAgent.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     x.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     x.Country.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
