@@ -1080,21 +1080,33 @@ namespace Auth.Api.Services
             var users = new List<AppUser>();
             search = search.ToLower();
 
+            //if (!string.IsNullOrWhiteSpace(selection.Trim()))
+            //{
+            //    users = _userManager.Users.AsNoTracking().Where(x => (x.MainUserId.ToLower() == selection.ToLower()) &&
+            //            (string.IsNullOrWhiteSpace(search) ||
+            //            x.UserName.ToLower().Contains(search) ||
+            //            (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
+            //            x.Email.ToLower().Contains(search))).ToList();
+            //}
+            //else
+            //{
+            //    users = _userManager.Users.AsNoTracking().Where(x => string.IsNullOrWhiteSpace(x.MainUserId) &&
+            //            (string.IsNullOrWhiteSpace(search) ||
+            //            x.UserName.ToLower().Contains(search) ||
+            //            (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
+            //            x.Email.ToLower().Contains(search))).ToList();
+            //}
             if (!string.IsNullOrWhiteSpace(selection.Trim()))
             {
                 users = _userManager.Users.AsNoTracking().Where(x => (x.MainUserId.ToLower() == selection.ToLower()) &&
                         (string.IsNullOrWhiteSpace(search) ||
-                        x.UserName.ToLower().Contains(search) ||
-                        (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
-                        x.Email.ToLower().Contains(search))).ToList();
+                        x.UserName.ToLower().Contains(search))).ToList();
             }
             else
             {
                 users = _userManager.Users.AsNoTracking().Where(x => string.IsNullOrWhiteSpace(x.MainUserId) &&
                         (string.IsNullOrWhiteSpace(search) ||
-                        x.UserName.ToLower().Contains(search) ||
-                        (x.NickName != null && x.NickName.ToLower().Contains(search)) ||
-                        x.Email.ToLower().Contains(search))).ToList();
+                        x.UserName.ToLower().Contains(search))).ToList();
             }
 
             if (!isShowSuperAdmin)
