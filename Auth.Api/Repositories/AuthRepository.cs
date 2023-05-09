@@ -200,7 +200,7 @@ namespace Auth.Api.Repositories
                 var browserInfo = "";
                 var browserVersion = "";
                 var operatingSystem = "";
-                if (string.IsNullOrEmpty(loginModel.UserAgent))
+                if (!string.IsNullOrEmpty(loginModel.UserAgent))
                 {
                     var uaParser = Parser.GetDefault();
                     ClientInfo client = uaParser.Parse(loginModel.UserAgent);
