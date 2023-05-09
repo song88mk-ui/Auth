@@ -217,7 +217,7 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "", string ipAddress = "")
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
         {
             using var activity = this.activitySource.StartActivity("login");
 
@@ -225,15 +225,15 @@ namespace Auth.Api.Repositories
             {
                 if (content != null)
                 {
-                    if (!string.IsNullOrEmpty(ipAddress))
+                    if (!string.IsNullOrEmpty(content.IpAddress))
                     {
-                        content.IpAddress = ipAddress.Trim();
                         if (content.IpAddress == "::1")
                         {
                             content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
                         }
 
-                        content.Country = GetUserCountryByIp(content.IpAddress);
+                        if (string.IsNullOrEmpty(content.Country))
+                            content.Country = GetUserCountryByIp(content.IpAddress);
                     }
                     if (!string.IsNullOrWhiteSpace(userAgent) || (string.IsNullOrEmpty(content.BrowserInfo) || string.IsNullOrEmpty(content.BrowserVersion) || string.IsNullOrEmpty(content.OperatingSystem)))
                     {
@@ -332,8 +332,8 @@ namespace Auth.Api.Repositories
             }
             catch (Exception ex)
             {
-              activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-              this.loginFailureCounter.Add(1);
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                this.loginFailureCounter.Add(1);
 
                 return new BaseResponse<TokenModel>
                 {
