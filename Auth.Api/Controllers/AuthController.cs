@@ -32,11 +32,7 @@ namespace Auth.Api.Controllers
         {
             try
             {
-                var userAgent = HttpContext.Request.Headers["user-agent"].FirstOrDefault() ?? "";
-                userdata.IpAddress = HttpContext.Request.Headers["X-Forwarder-For"].FirstOrDefault() ?? "";
-                userdata.Country = HttpContext.Request.Headers["CF-IPCountry"].FirstOrDefault() ?? "";
-
-                var result = await this._authRepository.Login(userdata, userAgent);
+                var result = await this._authRepository.Login(userdata);
 
                 switch (result.StatusCode)
                 {

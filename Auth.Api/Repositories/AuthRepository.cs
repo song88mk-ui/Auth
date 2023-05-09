@@ -217,7 +217,7 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, string userAgent = "")
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
         {
             using var activity = this.activitySource.StartActivity("login");
 
@@ -234,14 +234,6 @@ namespace Auth.Api.Repositories
 
                         if (string.IsNullOrEmpty(content.Country))
                             content.Country = GetUserCountryByIp(content.IpAddress);
-                    }
-                    if (!string.IsNullOrWhiteSpace(userAgent) || (string.IsNullOrEmpty(content.BrowserInfo) || string.IsNullOrEmpty(content.BrowserVersion) || string.IsNullOrEmpty(content.OperatingSystem)))
-                    {
-                        var uaParser = Parser.GetDefault();
-                        ClientInfo client = uaParser.Parse(userAgent);
-                        content.BrowserInfo = client.UA.Family.ToString();
-                        content.BrowserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
-                        content.OperatingSystem = client.OS.ToString();
                     }
                 }
 
