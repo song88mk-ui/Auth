@@ -32,6 +32,13 @@ namespace Auth.Api.Controllers
         {
             try
             {
+                if (string.IsNullOrEmpty(userdata.IpAddress))
+                    userdata.IpAddress = _authRepository.GetRemoteIpAddress(HttpContext).Trim();
+                if (string.IsNullOrEmpty(userdata.Country))
+                    userdata.Country = HttpContext.Request.Headers["CF-IPCountry"].FirstOrDefault() ?? "";
+                if (string.IsNullOrEmpty(userdata.UserAgent))
+                    userdata.UserAgent = HttpContext.Request.Headers["user-agent"].FirstOrDefault() ?? "";
+
                 var result = await this._authRepository.Login(userdata);
 
                 switch (result.StatusCode)

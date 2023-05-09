@@ -18,6 +18,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Transactions;
+using UAParser;
 
 namespace Auth.Api.Repositories
 {
@@ -196,15 +197,27 @@ namespace Auth.Api.Repositories
                     _memCache.AddOrUpdateCache($"ot:{operatorToken}", newToken, DateTimeOffset.UtcNow.AddDays(1));
                 }
 
+                var browserInfo = "";
+                var browserVersion = "";
+                var operatingSystem = "";
+                if (string.IsNullOrEmpty(loginModel.UserAgent))
+                {
+                    var uaParser = Parser.GetDefault();
+                    ClientInfo client = uaParser.Parse(loginModel.UserAgent);
+                    browserInfo = client.UA.Family.ToString();
+                    browserVersion = $"{client.UA.Major}.{client.UA.Minor}.{client.UA.Patch}";
+                    operatingSystem = client.OS.ToString();
+                }
+
                 if (loginModel != null)
                 {
                     _authContext.ActivityLog.Add(new ActivityLog()
                     {
                         UserId = user.Id,
                         Token = token,
-                        BrowserInfo = loginModel.BrowserInfo,
-                        BrowserVersion = loginModel.BrowserVersion,
-                        OperatingSystem = loginModel.OperatingSystem,
+                        BrowserInfo = browserInfo,
+                        BrowserVersion = browserVersion,
+                        OperatingSystem = operatingSystem,
                         IpAddress = loginModel.IpAddress,
                         Country = loginModel.Country,
                         Date = DateTime.UtcNow
@@ -812,7 +825,31 @@ namespace Auth.Api.Repositories
                 }
             };
         }
-        public static string GetUserCountryByIp(string ip)
+        public string GetRemoteIpAddress(HttpContext httpContext)
+        {
+            var ip = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+
+            if (string.IsNullOrEmpty(ip))
+            {
+                ip = httpContext.Connection.RemoteIpAddress.ToString();
+            }
+
+            return ip.Split(':').FirstOrDefault().Split(",").FirstOrDefault();
+        }
+        #endregion
+
+        #region Utilities
+        private string GetUserId(string id)
+        {
+            if (long.TryParse(id, out long idRef))
+            {
+                var appUser = _authContext.Users.FirstOrDefault(x => x.IdRef == idRef);
+
+                id = appUser == null || idRef == 0 ? id : appUser.Id;
+            }
+            return id;
+        }
+        private static string GetUserCountryByIp(string ip)
         {
             IpInfo ipInfo = new IpInfo();
             try
@@ -828,19 +865,6 @@ namespace Auth.Api.Repositories
             }
 
             return ipInfo.Country ?? "";
-        }
-        #endregion
-
-        #region Utilities
-        private string GetUserId(string id)
-        {
-            if (long.TryParse(id, out long idRef))
-            {
-                var appUser = _authContext.Users.FirstOrDefault(x => x.IdRef == idRef);
-
-                id = appUser == null || idRef == 0 ? id : appUser.Id;
-            }
-            return id;
         }
         #endregion
     }

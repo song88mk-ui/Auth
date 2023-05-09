@@ -13,5 +13,6 @@ namespace Auth.Api.Repositories
         Task<BaseResponse<PermissionResponse>> GetPermissionList(bool isSubUserOnly, int version, string categories = "0,1,2");
         Task<BaseResponse<ActivityLogResponse>> GetActivityLogList(string userId, string search, MetaData metaData);
         Task<BaseResponse<UsersOnlineResponse>> GetActiveSessions();
+        string GetRemoteIpAddress(HttpContext httpContext);
     }
 }
