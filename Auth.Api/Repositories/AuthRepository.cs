@@ -31,9 +31,9 @@ namespace Auth.Api.Repositories
         private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
-        private readonly ActivitySource activitySource;
-        private readonly Counter<long> loginSuccessCounter;
-        private readonly Counter<long> loginFailureCounter;
+        private readonly ActivitySource _activitySource;
+        private readonly Counter<long> _loginSuccessCounter;
+        private readonly Counter<long> _loginFailureCounter;
 
         #endregion
 
@@ -62,9 +62,9 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"] ?? string.Empty;
             _memCache = memCache;
-            this.activitySource = instrumentation.ActivitySource;
-            this.loginSuccessCounter = instrumentation.LoginSuccessCounter;
-            this.loginFailureCounter = instrumentation.LoginFailureCounter;
+            this._activitySource = instrumentation.ActivitySource;
+            this._loginSuccessCounter = instrumentation.LoginSuccessCounter;
+            this._loginFailureCounter = instrumentation.LoginFailureCounter;
         }
 
         #endregion
@@ -219,7 +219,7 @@ namespace Auth.Api.Repositories
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
         {
-            using var activity = this.activitySource.StartActivity("login");
+            using var activity = this._activitySource.StartActivity("login");
 
             try
             {
@@ -231,10 +231,11 @@ namespace Auth.Api.Repositories
                         {
                             content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
                         }
-
                         if (string.IsNullOrEmpty(content.Country))
                             content.Country = GetUserCountryByIp(content.IpAddress);
                     }
+
+                    content.Country = content.Country ?? "";
                 }
 
                 // if main user get from role claims
@@ -245,7 +246,7 @@ namespace Auth.Api.Repositories
                 if (user == null)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, "account not found");
-                    this.loginFailureCounter.Add(1);
+                    this._loginFailureCounter.Add(1);
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.Username_Not_Found,
@@ -257,7 +258,7 @@ namespace Auth.Api.Repositories
                 if (user.AppId.ToString() != content.Provider)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, "account not found");
-                    this.loginFailureCounter.Add(1);
+                    this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -270,7 +271,7 @@ namespace Auth.Api.Repositories
                 if (user.LockoutEnd != null)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, "account is locked");
-                    this.loginFailureCounter.Add(1);
+                    this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -287,7 +288,7 @@ namespace Auth.Api.Repositories
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, "incorrect password");
-                    this.loginFailureCounter.Add(1);
+                    this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -309,7 +310,7 @@ namespace Auth.Api.Repositories
                 SaveToken(user, accessToken, operatorToken, content);
 
                 activity?.SetStatus(ActivityStatusCode.Ok);
-                this.loginSuccessCounter.Add(1);
+                this._loginSuccessCounter.Add(1);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -325,7 +326,7 @@ namespace Auth.Api.Repositories
             catch (Exception ex)
             {
                 activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                this.loginFailureCounter.Add(1);
+                this._loginFailureCounter.Add(1);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -337,7 +338,7 @@ namespace Auth.Api.Repositories
         }
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
-            using var activity = this.activitySource.StartActivity("logout");
+            using var activity = this._activitySource.StartActivity("logout");
 
             if (string.IsNullOrWhiteSpace(token))
             {
@@ -398,7 +399,7 @@ namespace Auth.Api.Repositories
         public BaseResponse<TokenModel> Authenticate(string token)
         {
 
-            using var activity = this.activitySource.StartActivity("authenticate");
+            using var activity = this._activitySource.StartActivity("authenticate");
 
             try
             {
@@ -488,11 +489,9 @@ namespace Auth.Api.Repositories
 
                         _authContext.UserTokens.Update(currentUserToken);
                         _authContext.SaveChanges();
-
                     }
 
                     scope.Complete();
-
                     activity?.SetStatus(ActivityStatusCode.Ok);
 
                     return new BaseResponse<TokenModel>
@@ -505,7 +504,6 @@ namespace Auth.Api.Repositories
                             AccessToken = userToken.Value
                         }
                     };
-
                 };
             }
             catch (Exception ex)
@@ -830,25 +828,8 @@ namespace Auth.Api.Repositories
                 ipInfo.Country = null;
             }
 
-            return ipInfo.Country;
+            return ipInfo.Country ?? "";
         }
-        public string GetIPAddress()
-        {
-            String address = "";
-            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
-            using (WebResponse response = request.GetResponse())
-            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
-            {
-                address = stream.ReadToEnd();
-            }
-
-            int first = address.IndexOf("Address: ") + 9;
-            int last = address.LastIndexOf("</body>");
-            address = address.Substring(first, last - first);
-
-            return address;
-        }
-
         #endregion
 
         #region Utilities
