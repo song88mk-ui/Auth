@@ -18,7 +18,6 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Transactions;
-using UAParser;
 
 namespace Auth.Api.Repositories
 {
