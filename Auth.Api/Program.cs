@@ -2,6 +2,7 @@ using Auth.Api.ActionFilters;
 using Auth.Api.Identity;
 using Auth.Api.Repositories;
 using Auth.Api.Services;
+using Auth.Api.Telemetry;
 using Auth.Shared.Data.Auth;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
@@ -12,15 +13,76 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using System.Diagnostics.Metrics;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-var configuration = builder.Services.BuildServiceProvider().GetService<IConfiguration>();
+
+// Telemetry
+Action<ResourceBuilder> configureResource = r => r.AddService(
+    serviceName: String.Format("{0}/{1}", builder.Configuration["Telemetry:Environment"], "Authentication-API"),
+    serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
+    serviceInstanceId: Environment.MachineName);
+
+builder.Services.AddSingleton<Instrumentation>();
+
+if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
+{
+  builder.Services.AddOpenTelemetry()
+    .ConfigureResource(configureResource)
+    .WithTracing(tracing =>
+    {
+      tracing
+        .AddSource(Instrumentation.ActivitySourceName)
+        .SetSampler(new AlwaysOnSampler())
+        .AddHttpClientInstrumentation()
+        .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
+        {
+          // observe /v1(/.*) only
+          return httpContext.Request.Path.ToString().StartsWith("/v1");
+        })
+        .AddSqlClientInstrumentation();
+
+
+      builder.Services.Configure<AspNetCoreInstrumentationOptions>(builder.Configuration.GetSection("Telemetry:AspNetCoreInstrumentation"));
+
+
+      tracing.AddOtlpExporter(otlpOptions =>
+      {
+        otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+        otlpOptions.Endpoint = new Uri(builder.Configuration["Telemetry:Collector"]+"/v1/traces");
+      });
+
+
+    })
+    .WithMetrics(metrics =>
+    {
+      metrics
+        .AddMeter(Instrumentation.MeterName)
+        .AddRuntimeInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddAspNetCoreInstrumentation();
+
+      metrics.AddOtlpExporter(otlpOptions =>
+      {
+        otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+        otlpOptions.Endpoint = new Uri(builder.Configuration["Telemetry:Collector"]+"/v1/metrics");
+      });
+
+    });
+
+}
 
 // Add services to the container.
-builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(configuration["Context:Auth"]));
+builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(builder.Configuration["Context:Auth"]));
 builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<AuthContext>()
     //.AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>))
     .AddDefaultTokenProviders();
@@ -103,9 +165,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = configuration["JWT:Issuer"],
-        ValidAudience = configuration["JWT:Issuer"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Key"]))
+        ValidIssuer = builder.Configuration["JWT:Issuer"],
+        ValidAudience = builder.Configuration["JWT:Issuer"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Key"]))
     };
 });
 
