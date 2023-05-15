@@ -200,11 +200,23 @@ namespace Auth.Api.Repositories
 
                 if (loginModel != null)
                 {
+                    // For V2
+                    //_authContext.ActivityLog.Add(new ActivityLog()
+                    //{
+                    //    UserId = user.Id,
+                    //    Token = token,
+                    //    UserAgent = loginModel.UserAgent,
+                    //    IpAddress = loginModel.IpAddress,
+                    //    Country = loginModel.Country,
+                    //    Date = DateTime.UtcNow
+                    //});
                     _authContext.ActivityLog.Add(new ActivityLog()
                     {
                         UserId = user.Id,
                         Token = token,
-                        UserAgent = loginModel.UserAgent,
+                        BrowserInfo = string.Empty,
+                        BrowserVersion = string.Empty,
+                        OperatingSystem = string.Empty,
                         IpAddress = loginModel.IpAddress,
                         Country = loginModel.Country,
                         Date = DateTime.UtcNow
@@ -735,21 +747,33 @@ namespace Auth.Api.Repositories
 
                 userId = GetUserId(userId);
 
+                // for V2
                 var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).OrderByDescending(x => x.Date)
-                    .Select(x => new ActivityLog
+                    .Select(x => new ActivityLog2
                     {
                         UserId = x.UserId,
                         Token = x.Token,
-                        UserAgent = x.UserAgent,
+                        UserAgent = string.Empty,
                         IpAddress = x.IpAddress,
                         Country = x.Country,
                         Date = DateTime.Parse(x.Date.ToString())
                     }).ToList();
+                //var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).OrderByDescending(x => x.Date)
+                //    .Select(x => new ActivityLog
+                //    {
+                //        UserId = x.UserId,
+                //        Token = x.Token,
+                //        BrowserInfo = x.BrowserInfo,
+                //        BrowserVersion = x.BrowserVersion,
+                //        OperatingSystem = x.OperatingSystem,
+                //        IpAddress = x.IpAddress,
+                //        Country = x.Country,
+                //        Date = DateTime.Parse(x.Date.ToString())
+                //    }).ToList();
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     activityLog = activityLog.Where(x =>
-                    x.UserAgent.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     x.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     x.Country.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
