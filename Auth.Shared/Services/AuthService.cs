@@ -820,10 +820,11 @@ namespace Auth.Api.Services
                         }
                     }
 
+
+                    var users = _authContext.UserRoles.Where(x => x.RoleId == request.UserGroupId).Select(x => x.UserId).ToList();
                     _authContext.SaveChanges();
                     scope.Complete();
 
-                    var users = _authContext.UserRoles.Where(x => x.RoleId == request.UserGroupId).Select(x => x.UserId).ToList();
                     foreach (string inputValue in users)
                     {
                         _memCache.DeleteCache($"uc:{inputValue}");
@@ -851,6 +852,7 @@ namespace Auth.Api.Services
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
                 };
             }
+        
         }
 
         public async Task<BaseResponse<bool>> DeleteAspNetRoles(UserGroupRequest request)
