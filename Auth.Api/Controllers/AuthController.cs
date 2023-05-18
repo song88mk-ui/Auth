@@ -45,7 +45,7 @@ namespace Auth.Api.Controllers
                     int.TryParse(HttpContext.Request.Headers["x-version"].ToString(), out version);
                 }
 
-                var result = await this._authRepository.Login(userdata, version);
+                var result = await _authRepository.Login(userdata, version);
 
                 switch (result.StatusCode)
                 {
