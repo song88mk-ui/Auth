@@ -71,7 +71,7 @@ namespace Auth.Api.Repositories
 
         #region Methods
 
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, long userIdRef = 0l, long mainUserIdRef = 0l)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, int version = 0, long userIdRef = 0l, long mainUserIdRef = 0l)
         {
             var token = new SecurityTokenDescriptor
             {
@@ -117,13 +117,13 @@ namespace Auth.Api.Repositories
                     {
                         claims = (from userClaims in _authContext.UserClaims
                                   join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
-                                  where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true
+                                  where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true && permissions.Version >= version
                                   select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                         clients = (from roleClaims in _authContext.RoleClaims
                                    join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
                                    join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                                   where roles.UserId == mainUserId && permissions.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')
+                                   where roles.UserId == mainUserId && permissions.ClaimType == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.') 
                                    select new Claim(permissions.ClaimType, roleClaims.ClaimValue)).FirstOrDefault();
                     }
                     else
@@ -131,7 +131,7 @@ namespace Auth.Api.Repositories
                         claims = (from roleClaims in _authContext.RoleClaims
                                   join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
                                   join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                                  where roleClaims.ClaimValue != "0" && roles.UserId == userId
+                                  where roleClaims.ClaimValue != "0" && roles.UserId == userId && permissions.Version >= version
                                   select new Claim(permissions.ClaimType, roleClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                         clients = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.'));
@@ -228,7 +228,7 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, int version)
         {
             using var activity = this._activitySource.StartActivity("login");
 
@@ -313,7 +313,7 @@ namespace Auth.Api.Repositories
 
                 var role = await _userIdentityService.GetCurrentUserRole(user);
 
-                var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, user.IdRef, mainUserIdRef);
+                var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, version, user.IdRef, mainUserIdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token));
 
