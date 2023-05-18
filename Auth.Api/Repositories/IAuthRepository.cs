@@ -5,7 +5,7 @@ namespace Auth.Api.Repositories
 {
     public interface IAuthRepository
     {
-        Task<BaseResponse<TokenModel>> Login(LoginModel content);
+        Task<BaseResponse<TokenModel>> Login(LoginModel content, int version);
         Task<BaseResponse<bool>> Logout(string token, bool isOperator = false);
         BaseResponse<TokenModel> Authenticate(string token);
         OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false);

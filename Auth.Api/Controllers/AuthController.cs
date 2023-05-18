@@ -39,7 +39,13 @@ namespace Auth.Api.Controllers
                 if (string.IsNullOrEmpty(userdata.UserAgent))
                     userdata.UserAgent = HttpContext.Request.Headers["user-agent"].FirstOrDefault() ?? "";
 
-                var result = await this._authRepository.Login(userdata);
+                var version = 0;
+                if (HttpContext.Request.Headers.ContainsKey("x-version"))
+                {
+                    int.TryParse(HttpContext.Request.Headers["x-version"].ToString(), out version);
+                }
+
+                var result = await this._authRepository.Login(userdata, version);
 
                 switch (result.StatusCode)
                 {

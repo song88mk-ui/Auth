@@ -71,7 +71,7 @@ namespace Auth.Api.Repositories
 
         #region Methods
 
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, long userIdRef = 0l, long mainUserIdRef = 0l)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, int version = 0, long userIdRef = 0l, long mainUserIdRef = 0l)
         {
             var token = new SecurityTokenDescriptor
             {
@@ -223,7 +223,7 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public async Task<BaseResponse<TokenModel>> Login(LoginModel content)
+        public async Task<BaseResponse<TokenModel>> Login(LoginModel content, int version)
         {
             using var activity = this._activitySource.StartActivity("login");
 
@@ -308,7 +308,7 @@ namespace Auth.Api.Repositories
 
                 var role = await _userIdentityService.GetCurrentUserRole(user);
 
-                var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, user.IdRef, mainUserIdRef);
+                var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, version, user.IdRef, mainUserIdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token));
 
