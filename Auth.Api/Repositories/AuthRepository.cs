@@ -110,11 +110,15 @@ namespace Auth.Api.Repositories
             }
             else
             {
+                var permissionVersions = new List<int>() { 0, 1, 2};
+                if(version == 2)
+                    permissionVersions = new List<int>() { 0, 2 };
+
                 if (isSubUser)
                 {
                     claims = (from userClaims in _authContext.UserClaims
                               join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true && permissions.Version <= version
+                              where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true && permissionVersions.Contains(permissions.Version)
                               select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                     clients = (from roleClaims in _authContext.RoleClaims
@@ -128,7 +132,7 @@ namespace Auth.Api.Repositories
                     claims = (from roleClaims in _authContext.RoleClaims
                               join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
                               join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where roleClaims.ClaimValue != "0" && roles.UserId == userId && permissions.Version <= version
+                              where roleClaims.ClaimValue != "0" && roles.UserId == userId && permissionVersions.Contains(permissions.Version)
                               select new Claim(permissions.ClaimType, roleClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                     clients = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.'));
