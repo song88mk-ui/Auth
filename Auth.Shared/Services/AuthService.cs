@@ -558,6 +558,8 @@ namespace Auth.Api.Services
 
                 var user = (await _userManager.FindByIdAsync(userId));
 
+                AppToken userToken = null;
+
                 if (user == null)
                 {
                     return new BaseResponse<bool>()
@@ -581,7 +583,7 @@ namespace Auth.Api.Services
                 {
                     if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
                     {
-                        var userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
+                        userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
 
                         if(userToken != null)
                         {
@@ -677,6 +679,13 @@ namespace Auth.Api.Services
                     };
                 }
 
+                //force logout user                
+                userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);                    
+                if (userToken != null)
+                {
+                    _authContext.Remove(userToken);
+                }
+                
                 _authContext.SaveChanges();
                 return new BaseResponse<bool>
                 {
@@ -776,6 +785,25 @@ namespace Auth.Api.Services
                 {
                     appRole.Name = request.UserGroupName;
                     result = await _roleManager.UpdateAsync(appRole);
+
+                    //force logout users in the same usergroup
+                    var users = await _userManager.GetUsersInRoleAsync(appRole.Name);
+
+                    List<AppToken> userTokens = new List<AppToken>();
+                    foreach (var user in users)
+                    {
+                        var userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == user.Id);
+
+                        if (userToken != null)
+                        {
+                            userTokens.Add(userToken);
+                        }
+                    }
+
+                    if (userTokens.Any())
+                    {
+                        _authContext.RemoveRange(userTokens);
+                    }
                 }
 
                 if (!result.Succeeded)
