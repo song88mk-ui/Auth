@@ -347,7 +347,7 @@ namespace Auth.Api.Repositories
             }
             finally
             {
-              activity?.End();
+              activity?.Stop();
             }
         }
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
@@ -414,7 +414,7 @@ namespace Auth.Api.Repositories
             }
             finally
             {
-              activity?.End();
+              activity?.Stop();
             }
         }
         public BaseResponse<TokenModel> Authenticate(string token)
@@ -539,7 +539,7 @@ namespace Auth.Api.Repositories
             }
             finally
             {
-              activity?.End();
+              activity?.Stop();
             }
         }
         public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
