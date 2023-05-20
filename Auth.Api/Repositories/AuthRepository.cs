@@ -345,13 +345,66 @@ namespace Auth.Api.Repositories
                     Result = null
                 };
             }
+            finally
+            {
+              activity?.End();
+            }
         }
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
             using var activity = this._activitySource.StartActivity("logout");
-
-            if (string.IsNullOrWhiteSpace(token))
+            try
             {
+
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
+                    };
+                }
+
+                _memCache.DeleteCache($"ot:{token}");
+
+                var userId = string.Empty;
+                var tokenEntity = new AppToken();
+
+                if (isOperator)
+                {
+                    tokenEntity = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                    userId = tokenEntity != null ? tokenEntity.UserId : "";
+                }
+                else
+                {
+                    var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
+                    var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+                    userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+
+                    tokenEntity = _authContext.UserTokens.Where(x => x.UserId == userId).FirstOrDefault();
+                }
+
+                if (tokenEntity == null)
+                {
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
+                    };
+                }
+
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                {
+                    var accessToken = tokenEntity.Value;
+                    _authContext.UserTokens.Remove(tokenEntity);
+                    _authContext.SaveChanges();
+                    scope.Complete();
+                }
+
+                activity?.SetStatus(ActivityStatusCode.Ok);
+
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
@@ -359,52 +412,10 @@ namespace Auth.Api.Repositories
                     Result = true
                 };
             }
-
-            _memCache.DeleteCache($"ot:{token}");
-
-            var userId = string.Empty;
-            var tokenEntity = new AppToken();
-
-            if (isOperator)
+            finally
             {
-                tokenEntity = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
-                userId = tokenEntity != null ? tokenEntity.UserId : "";
+              activity?.End();
             }
-            else
-            {
-                var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
-                var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-                userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
-
-                tokenEntity = _authContext.UserTokens.Where(x => x.UserId == userId).FirstOrDefault();
-            }
-
-            if (tokenEntity == null)
-            {
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = true
-                };
-            }
-
-            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
-            {
-                var accessToken = tokenEntity.Value;
-                _authContext.UserTokens.Remove(tokenEntity);
-                _authContext.SaveChanges();
-                scope.Complete();
-            }
-
-            activity?.SetStatus(ActivityStatusCode.Ok);
-
-            return new BaseResponse<bool>
-            {
-                StatusCode = StatusCode.Success,
-                Message = StatusCode.Success.ToString(),
-                Result = true
-            };
         }
         public BaseResponse<TokenModel> Authenticate(string token)
         {
@@ -525,6 +536,10 @@ namespace Auth.Api.Repositories
                     Message = ex.Message,
                     Result = null
                 };
+            }
+            finally
+            {
+              activity?.End();
             }
         }
         public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
