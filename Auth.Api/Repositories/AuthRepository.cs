@@ -248,6 +248,8 @@ namespace Auth.Api.Repositories
                     content.Country = content.Country ?? "";
                 }
 
+                activity?.SetTag("user.name", content.Username);
+
                 // if main user get from role claims
                 // if sub user get from user claims
                 var user = await _userManager.FindByNameAsync(content.Username);
@@ -384,6 +386,8 @@ namespace Auth.Api.Repositories
 
                     tokenEntity = _authContext.UserTokens.Where(x => x.UserId == userId).FirstOrDefault();
                 }
+
+                activity?.SetTag("user.id", userId);
 
                 if (tokenEntity == null)
                 {
