@@ -257,7 +257,6 @@ namespace Auth.Api.Repositories
 
                 if (user == null)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "account not found");
                     this._loginFailureCounter.Add(1);
                     return new BaseResponse<TokenModel>
                     {
@@ -269,7 +268,6 @@ namespace Auth.Api.Repositories
 
                 if (user.AppId.ToString() != content.Provider)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "account not found");
                     this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
@@ -282,7 +280,6 @@ namespace Auth.Api.Repositories
 
                 if (user.LockoutEnd != null)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "account is locked");
                     this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
@@ -299,7 +296,6 @@ namespace Auth.Api.Repositories
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "incorrect password");
                     this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
@@ -474,7 +470,6 @@ namespace Auth.Api.Repositories
 
                     if (userToken == null)
                     {
-                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -485,7 +480,6 @@ namespace Auth.Api.Repositories
 
                     if (userToken.Value != token)
                     {
-                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -497,7 +491,6 @@ namespace Auth.Api.Repositories
                     var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
                     if (user.LockoutEnd != null)
                     {
-                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
