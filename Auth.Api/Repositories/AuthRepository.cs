@@ -255,6 +255,8 @@ namespace Auth.Api.Repositories
                     content.Country = content.Country ?? "";
                 }
 
+                activity?.SetTag("user.name", content.Username);
+
                 // if main user get from role claims
                 // if sub user get from user claims
                 var user = await _userManager.FindByNameAsync(content.Username);
@@ -262,7 +264,6 @@ namespace Auth.Api.Repositories
 
                 if (user == null)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "account not found");
                     this._loginFailureCounter.Add(1);
                     return new BaseResponse<TokenModel>
                     {
@@ -274,7 +275,6 @@ namespace Auth.Api.Repositories
 
                 if (user.AppId.ToString() != content.Provider)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "account not found");
                     this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
@@ -287,7 +287,6 @@ namespace Auth.Api.Repositories
 
                 if (user.LockoutEnd != null)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "account is locked");
                     this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
@@ -304,7 +303,6 @@ namespace Auth.Api.Repositories
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
-                    activity?.SetStatus(ActivityStatusCode.Error, "incorrect password");
                     this._loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
@@ -352,13 +350,68 @@ namespace Auth.Api.Repositories
                     Result = null
                 };
             }
+            finally
+            {
+              activity?.Stop();
+            }
         }
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
             using var activity = this._activitySource.StartActivity("logout");
-
-            if (string.IsNullOrWhiteSpace(token))
+            try
             {
+
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
+                    };
+                }
+
+                _memCache.DeleteCache($"ot:{token}");
+
+                var userId = string.Empty;
+                var tokenEntity = new AppToken();
+
+                if (isOperator)
+                {
+                    tokenEntity = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+                    userId = tokenEntity != null ? tokenEntity.UserId : "";
+                }
+                else
+                {
+                    var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
+                    var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+                    userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+
+                    tokenEntity = _authContext.UserTokens.Where(x => x.UserId == userId).FirstOrDefault();
+                }
+
+                activity?.SetTag("user.id", userId);
+
+                if (tokenEntity == null)
+                {
+                    return new BaseResponse<bool>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = true
+                    };
+                }
+
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                {
+                    var accessToken = tokenEntity.Value;
+                    _authContext.UserTokens.Remove(tokenEntity);
+                    _authContext.SaveChanges();
+                    scope.Complete();
+                }
+
+                activity?.SetStatus(ActivityStatusCode.Ok);
+
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
@@ -366,52 +419,10 @@ namespace Auth.Api.Repositories
                     Result = true
                 };
             }
-
-            _memCache.DeleteCache($"ot:{token}");
-
-            var userId = string.Empty;
-            var tokenEntity = new AppToken();
-
-            if (isOperator)
+            finally
             {
-                tokenEntity = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
-                userId = tokenEntity != null ? tokenEntity.UserId : "";
+              activity?.Stop();
             }
-            else
-            {
-                var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
-                var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-                userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
-
-                tokenEntity = _authContext.UserTokens.Where(x => x.UserId == userId).FirstOrDefault();
-            }
-
-            if (tokenEntity == null)
-            {
-                return new BaseResponse<bool>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = true
-                };
-            }
-
-            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
-            {
-                var accessToken = tokenEntity.Value;
-                _authContext.UserTokens.Remove(tokenEntity);
-                _authContext.SaveChanges();
-                scope.Complete();
-            }
-
-            activity?.SetStatus(ActivityStatusCode.Ok);
-
-            return new BaseResponse<bool>
-            {
-                StatusCode = StatusCode.Success,
-                Message = StatusCode.Success.ToString(),
-                Result = true
-            };
         }
         public BaseResponse<TokenModel> Authenticate(string token)
         {
@@ -466,7 +477,6 @@ namespace Auth.Api.Repositories
 
                     if (userToken == null)
                     {
-                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -477,7 +487,6 @@ namespace Auth.Api.Repositories
 
                     if (userToken.Value != token)
                     {
-                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -489,7 +498,6 @@ namespace Auth.Api.Repositories
                     var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
                     if (user.LockoutEnd != null)
                     {
-                        activity?.SetStatus(ActivityStatusCode.Error, "Invalid Token");
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -532,6 +540,10 @@ namespace Auth.Api.Repositories
                     Message = ex.Message,
                     Result = null
                 };
+            }
+            finally
+            {
+              activity?.Stop();
             }
         }
         public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
