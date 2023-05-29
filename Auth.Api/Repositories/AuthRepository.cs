@@ -301,8 +301,8 @@ namespace Auth.Api.Repositories
 
                 if (!string.IsNullOrEmpty(user.MainUserId) && user.MainUserId != "0")
                 {
-                    mainUserIdRef = _authContext.Users.FirstOrDefault(x => x.Id == user.MainUserId).IdRef;
                     var mainUser = await _userManager.FindByIdAsync(user.MainUserId);
+                    mainUserIdRef = mainUser.IdRef;
                     role = await _userIdentityService.GetCurrentUserRole(mainUser);
                 }
 
