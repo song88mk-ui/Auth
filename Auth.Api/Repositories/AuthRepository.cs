@@ -296,9 +296,14 @@ namespace Auth.Api.Repositories
                         Result = null
                     };
                 }
+
+                var role = await _userIdentityService.GetCurrentUserRole(user);
+
                 if (!string.IsNullOrEmpty(user.MainUserId) && user.MainUserId != "0")
                 {
                     mainUserIdRef = _authContext.Users.FirstOrDefault(x => x.Id == user.MainUserId).IdRef;
+                    var mainUser = await _userManager.FindByIdAsync(user.MainUserId);
+                    role = await _userIdentityService.GetCurrentUserRole(mainUser);
                 }
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
@@ -314,14 +319,6 @@ namespace Auth.Api.Repositories
                 }
 
                 var accessToken = string.Empty;
-
-                var role = await _userIdentityService.GetCurrentUserRole(user);
-
-                if (!string.IsNullOrWhiteSpace(user.MainUserId))
-                {
-                    var mainUser =  await _userManager.FindByNameAsync(content.Username);
-                    role = await _userIdentityService.GetCurrentUserRole(mainUser);
-                }
 
                 var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, version, user.IdRef, mainUserIdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
