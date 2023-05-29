@@ -317,6 +317,12 @@ namespace Auth.Api.Repositories
 
                 var role = await _userIdentityService.GetCurrentUserRole(user);
 
+                if (!string.IsNullOrWhiteSpace(user.MainUserId))
+                {
+                    var mainUser =  await _userManager.FindByNameAsync(content.Username);
+                    role = await _userIdentityService.GetCurrentUserRole(mainUser);
+                }
+
                 var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, version, user.IdRef, mainUserIdRef);
                 var tokenHandler = new JwtSecurityTokenHandler();
                 accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token));
@@ -352,7 +358,7 @@ namespace Auth.Api.Repositories
             }
             finally
             {
-              activity?.Stop();
+                activity?.Stop();
             }
         }
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
@@ -421,7 +427,7 @@ namespace Auth.Api.Repositories
             }
             finally
             {
-              activity?.Stop();
+                activity?.Stop();
             }
         }
         public BaseResponse<TokenModel> Authenticate(string token)
@@ -543,7 +549,7 @@ namespace Auth.Api.Repositories
             }
             finally
             {
-              activity?.Stop();
+                activity?.Stop();
             }
         }
         public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
