@@ -762,7 +762,7 @@ namespace Auth.Api.Repositories
                     {
                         UserId = x.UserId,
                         Token = x.Token,
-                        UserAgent = string.Empty,
+                        UserAgent = x.UserAgent,
                         IpAddress = x.IpAddress,
                         Country = x.Country,
                         Date = DateTime.Parse(x.Date.ToString())
