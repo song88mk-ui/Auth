@@ -206,23 +206,11 @@ namespace Auth.Api.Repositories
 
                 if (loginModel != null)
                 {
-                    // For V2
-                    //_authContext.ActivityLog.Add(new ActivityLog()
-                    //{
-                    //    UserId = user.Id,
-                    //    Token = token,
-                    //    UserAgent = loginModel.UserAgent,
-                    //    IpAddress = loginModel.IpAddress,
-                    //    Country = loginModel.Country,
-                    //    Date = DateTime.UtcNow
-                    //});
                     _authContext.ActivityLog.Add(new ActivityLog()
                     {
                         UserId = user.Id,
                         Token = token,
-                        BrowserInfo = string.Empty,
-                        BrowserVersion = string.Empty,
-                        OperatingSystem = string.Empty,
+                        UserAgent = loginModel.UserAgent,
                         IpAddress = loginModel.IpAddress,
                         Country = loginModel.Country,
                         Date = DateTime.UtcNow
@@ -770,7 +758,7 @@ namespace Auth.Api.Repositories
 
                 // for V2
                 var activityLog = _authContext.ActivityLog.Where(x => x.UserId == userId).OrderByDescending(x => x.Date)
-                    .Select(x => new ActivityLog2
+                    .Select(x => new ActivityLog
                     {
                         UserId = x.UserId,
                         Token = x.Token,

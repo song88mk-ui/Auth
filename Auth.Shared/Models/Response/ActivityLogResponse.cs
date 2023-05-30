@@ -6,9 +6,9 @@ namespace Auth.Shared.Models.Response
     {
         public ActivityLogResponse()
         {
-            ActivityLogs = new List<ActivityLog2>();
+            ActivityLogs = new List<ActivityLog>();
         }
-        public List<ActivityLog2> ActivityLogs { get; set; }
+        public List<ActivityLog> ActivityLogs { get; set; }
         public MetaData MetaData { get; set; }
     }
 }

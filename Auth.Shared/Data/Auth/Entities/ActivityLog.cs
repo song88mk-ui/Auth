@@ -6,24 +6,12 @@ using System.Threading.Tasks;
 
 namespace Auth.Shared.Data.Auth.Entities
 {
-    public class ActivityLog2
-    {
-        public int Id { get; set; }
-        public string UserId { get; set; }
-        public string Token { get; set; }
-        public string UserAgent { get; set; }
-        public string IpAddress { get; set; }
-        public string Country { get; set; }
-        public DateTime Date { get; set; }
-    }
     public class ActivityLog
     {
         public int Id { get; set; }
         public string UserId { get; set; }
         public string Token { get; set; }
-        public string BrowserInfo { get; set; }
-        public string BrowserVersion { get; set; }
-        public string OperatingSystem { get; set; }
+        public string UserAgent { get; set; }
         public string IpAddress { get; set; }
         public string Country { get; set; }
         public DateTime Date { get; set; }
