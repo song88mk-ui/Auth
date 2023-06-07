@@ -120,13 +120,14 @@ namespace Auth.Api.Repositories
                                           join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
                                           join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
                                           where roleClaims.ClaimValue != "0" && roles.UserId == mainUserId && permissionVersions.Contains(permissions.Version)
-                                          select permissions.PermissionId).ToList();
+                                          select new ClaimModel() { ClaimType = permissions.ClaimType.ToString(), ClaimValue = roleClaims.ClaimValue }).ToList();
 
-                    claims = (from userClaims in _authContext.UserClaims
+                   var tempClaims = (from userClaims in _authContext.UserClaims
                               join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
                               where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true && permissionVersions.Contains(permissions.Version)
-                              && mainUserClaims.Contains(permissions.PermissionId)
                               select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+
+                    claims = tempClaims.Where(x => mainUserClaims.Any(c => c.ClaimType == x.Type && c.ClaimValue == x.Value)).Select(x => new Claim(x.Type, x.Value, x.ValueType)).ToList();
 
                     clients = (from roleClaims in _authContext.RoleClaims
                                join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
