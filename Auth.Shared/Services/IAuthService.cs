@@ -10,7 +10,7 @@ namespace Auth.Api.Services
     public interface IAuthService
     {
         Task<BaseResponse<long>> AddAspNetUsers(UserRegisterRequest request);
-        Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false);
+        Task<BaseResponse<string>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false);
         Task<BaseResponse<bool>> UpdateAspNetUserRole(UserRegisterRequest request);
         Task<bool> ModifyAspNetUserClaims(string userId, List<string> settings);
         Task<List<string>> GetAspNetUserClaims(string userId);

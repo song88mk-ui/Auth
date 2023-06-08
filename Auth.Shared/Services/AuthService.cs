@@ -550,7 +550,7 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false)
+        public async Task<BaseResponse<string>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false)
         {
             try
             {
@@ -687,11 +687,11 @@ namespace Auth.Api.Services
                 }
                 
                 _authContext.SaveChanges();
-                return new BaseResponse<bool>
+                return new BaseResponse<string>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = true
+                    Result = userId
                 };
 
             }
@@ -788,21 +788,13 @@ namespace Auth.Api.Services
 
                     //force logout users in the same usergroup
                     var users = await _userManager.GetUsersInRoleAsync(appRole.Name);
+                    var userIds = users.Select(x => x.Id).ToList();
 
-                    List<AppToken> userTokens = new List<AppToken>();
-                    foreach (var user in users)
-                    {
-                        var userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == user.Id);
-
-                        if (userToken != null)
-                        {
-                            userTokens.Add(userToken);
-                        }
-                    }
+                    var userTokens = _authContext.UserTokens.AsNoTracking().Where(x => userIds.Contains(x.UserId));
 
                     if (userTokens.Any())
                     {
-                        _authContext.RemoveRange(userTokens);
+                        _authContext.UserTokens.RemoveRange(userTokens);
                     }
                 }
 
