@@ -562,11 +562,11 @@ namespace Auth.Api.Services
 
                 if (user == null)
                 {
-                    return new BaseResponse<bool>()
+                    return new BaseResponse<string>()
                     {
                         StatusCode = StatusCode.Error,
                         Message = "User does not exist",
-                        Result = false
+                        Result = ""
                     };
                 }
 
@@ -616,7 +616,7 @@ namespace Auth.Api.Services
                     foreach (IdentityError error in result.Errors)
                         errorMsg += error.Description.ToString() + ",";
 
-                    return new BaseResponse<bool>
+                    return new BaseResponse<string>
                     {
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')} "
@@ -650,7 +650,7 @@ namespace Auth.Api.Services
                         {
                             if (oldPassword == request.Password)
                             {
-                                return new BaseResponse<bool>
+                                return new BaseResponse<string>
                                 {
                                     StatusCode = StatusCode.Error,
                                     Message = "Sorry, you entered an old password. Please choose a password you haven't used before."
@@ -672,7 +672,7 @@ namespace Auth.Api.Services
                     foreach (IdentityError error in result.Errors)
                         errorMsg += error.Description.ToString() + ",";
 
-                    return new BaseResponse<bool>
+                    return new BaseResponse<string>
                     {
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')}"
@@ -697,7 +697,7 @@ namespace Auth.Api.Services
             }
             catch (Exception ex)
             {
-                return new BaseResponse<bool>
+                return new BaseResponse<string>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
