@@ -550,7 +550,7 @@ namespace Auth.Api.Services
                 };
             }
         }
-        public async Task<BaseResponse<string>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false)
+        public async Task<BaseResponse<bool>> UpdateAspNetUsers(UserRegisterRequest request, string oldPassword = "", bool isDefault = false)
         {
             try
             {
@@ -562,11 +562,11 @@ namespace Auth.Api.Services
 
                 if (user == null)
                 {
-                    return new BaseResponse<string>()
+                    return new BaseResponse<bool>()
                     {
                         StatusCode = StatusCode.Error,
                         Message = "User does not exist",
-                        Result = ""
+                        Result = false
                     };
                 }
 
@@ -616,7 +616,7 @@ namespace Auth.Api.Services
                     foreach (IdentityError error in result.Errors)
                         errorMsg += error.Description.ToString() + ",";
 
-                    return new BaseResponse<string>
+                    return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')} "
@@ -650,7 +650,7 @@ namespace Auth.Api.Services
                         {
                             if (oldPassword == request.Password)
                             {
-                                return new BaseResponse<string>
+                                return new BaseResponse<bool>
                                 {
                                     StatusCode = StatusCode.Error,
                                     Message = "Sorry, you entered an old password. Please choose a password you haven't used before."
@@ -672,7 +672,7 @@ namespace Auth.Api.Services
                     foreach (IdentityError error in result.Errors)
                         errorMsg += error.Description.ToString() + ",";
 
-                    return new BaseResponse<string>
+                    return new BaseResponse<bool>
                     {
                         StatusCode = StatusCode.Error,
                         Message = $"{errorMsg.TrimEnd(',')}"
@@ -687,17 +687,17 @@ namespace Auth.Api.Services
                 }
                 
                 _authContext.SaveChanges();
-                return new BaseResponse<string>
+                return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
                     Message = StatusCode.Success.ToString(),
-                    Result = userId
+                    Result = true
                 };
 
             }
             catch (Exception ex)
             {
-                return new BaseResponse<string>
+                return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
