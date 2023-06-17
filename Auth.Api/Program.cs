@@ -28,7 +28,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Telemetry
 Action<ResourceBuilder> configureResource = r => r.AddService(
-    serviceName: String.Format("{0}/{1}", builder.Configuration["Telemetry:Environment"], "Authentication-API"),
+    serviceName: "Authentication-API",
+    serviceNamespace: builder.Configuration["Telemetry:Environment"],
     serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
     serviceInstanceId: Environment.MachineName);
 
