@@ -680,13 +680,8 @@ namespace Auth.Api.Services
                 }
 
                 //force logout user                
-                userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
-                if (userToken != null)
-                {
-                    _authContext.Remove(userToken);
-                }
+                await ForceLogOutUsers(userId);
 
-                _authContext.SaveChanges();
                 return new BaseResponse<bool>
                 {
                     StatusCode = StatusCode.Success,
@@ -838,13 +833,7 @@ namespace Auth.Api.Services
                 //force logout users in the same usergroup
                 var users = await _userManager.GetUsersInRoleAsync(appRole.Name);
                 var userIds = users.Select(x => x.Id).ToList();
-
-                var userTokens = _authContext.UserTokens.AsNoTracking().Where(x => userIds.Contains(x.UserId));
-
-                if (userTokens.Any())
-                {
-                    _authContext.UserTokens.RemoveRange(userTokens);
-                }
+                await ForceLogOutUsers(userIds);
 
                 return new BaseResponse<UserGroupResponse>
                 {
@@ -1193,6 +1182,21 @@ namespace Auth.Api.Services
             return retval;
         }
 
+        private async Task ForceLogOutUsers(string userId)
+        {
+            await ForceLogOutUsers(new List<string>() { userId});
+        }
+        private async Task ForceLogOutUsers(List<string> userIds)
+        {
+            var userTokens = _authContext.UserTokens.AsNoTracking().Where(x => userIds.Contains(x.UserId));
+
+            if (userTokens.Any())
+            {
+                _authContext.UserTokens.RemoveRange(userTokens);
+
+                _authContext.SaveChanges();
+            }
+        }
         #endregion
     }
 }
