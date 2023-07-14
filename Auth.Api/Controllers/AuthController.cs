@@ -17,6 +17,7 @@ namespace Auth.Api.Controllers
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class AuthController : ControllerBase
     {
+        //
         private readonly IAuthRepository _authRepository;
         public AuthController(IAuthRepository authRepository)
         {
