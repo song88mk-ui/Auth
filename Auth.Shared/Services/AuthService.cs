@@ -585,7 +585,7 @@ namespace Auth.Api.Services
                     {
                         userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
 
-                        if(userToken != null)
+                        if (userToken != null)
                         {
                             _memCache.DeleteCache($"ot:{userToken.Value}");
                         }
@@ -646,7 +646,7 @@ namespace Auth.Api.Services
                     {
                         var isValidOldPassword = await _userManager.CheckPasswordAsync(user, oldPassword);
 
-                        if(isValidOldPassword)
+                        if (isValidOldPassword)
                         {
                             if (oldPassword == request.Password)
                             {
@@ -680,12 +680,12 @@ namespace Auth.Api.Services
                 }
 
                 //force logout user                
-                userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);                    
+                userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
                 if (userToken != null)
                 {
                     _authContext.Remove(userToken);
                 }
-                
+
                 _authContext.SaveChanges();
                 return new BaseResponse<bool>
                 {
@@ -766,12 +766,10 @@ namespace Auth.Api.Services
             try
             {
                 IdentityResult result = new IdentityResult();
-                //List<AppRoleClaim> tmpRoleClaims
                 var appRole = await _roleManager.FindByIdAsync(request.UserGroupId);
 
                 if (appRole == null)
                 {
-                    //result = await _roleManager.CreateAsync(new IdentityRole(request.UserGroupName));
                     var role = new AppRole(request.UserGroupName);
 
                     role.UserGroupIdRef = ConvertToEpochTimestamp(DateTime.UtcNow);
@@ -785,17 +783,6 @@ namespace Auth.Api.Services
                 {
                     appRole.Name = request.UserGroupName;
                     result = await _roleManager.UpdateAsync(appRole);
-
-                    //force logout users in the same usergroup
-                    var users = await _userManager.GetUsersInRoleAsync(appRole.Name);
-                    var userIds = users.Select(x => x.Id).ToList();
-
-                    var userTokens = _authContext.UserTokens.AsNoTracking().Where(x => userIds.Contains(x.UserId));
-
-                    if (userTokens.Any())
-                    {
-                        _authContext.UserTokens.RemoveRange(userTokens);
-                    }
                 }
 
                 if (!result.Succeeded)
@@ -813,29 +800,50 @@ namespace Auth.Api.Services
 
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                 {
-                    foreach (var claims in request.Claims)
+                    foreach (var claim in request.Claims)
                     {
-                        var newClaims = _authContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claims.ClaimType);
+                        var newClaims = _authContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claim.ClaimType);
                         if (newClaims == null)
                         {
-                            Claim newClaims2 = new Claim(claims.ClaimType, claims.ClaimValue);
+                            Claim newClaims2 = new Claim(claim.ClaimType, claim.ClaimValue);
                             await _roleManager.AddClaimAsync(appRole, newClaims2);
 
                             await _authContext.SaveChangesAsync();
                         }
                         else
                         {
-                            newClaims.ClaimValue = claims.ClaimValue;
+                            newClaims.ClaimValue = claim.ClaimValue;
                             _authContext.RoleClaims.Update(newClaims);
 
                             await _authContext.SaveChangesAsync();
 
                             _authContext.Entry(newClaims).State = EntityState.Detached;
                         }
+
+                        if(claim.ClaimValue == "0" || claim.ClaimValue == "2")
+                        {
+                            var subUsers = _authContext.UserClaims.Where(x => x.ClaimType == claim.ClaimType && x.ClaimValue == "1").ToList();
+                            if (subUsers != null && subUsers.Any())
+                            {
+                                subUsers.ForEach(x => x.ClaimValue = claim.ClaimValue);
+                                _authContext.UpdateRange(subUsers);
+                            }
+                        }
                     }
 
                     _authContext.SaveChanges();
                     scope.Complete();
+                }
+
+                //force logout users in the same usergroup
+                var users = await _userManager.GetUsersInRoleAsync(appRole.Name);
+                var userIds = users.Select(x => x.Id).ToList();
+
+                var userTokens = _authContext.UserTokens.AsNoTracking().Where(x => userIds.Contains(x.UserId));
+
+                if (userTokens.Any())
+                {
+                    _authContext.UserTokens.RemoveRange(userTokens);
                 }
 
                 return new BaseResponse<UserGroupResponse>
@@ -859,7 +867,7 @@ namespace Auth.Api.Services
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
                 };
             }
-        
+
         }
 
         public async Task<BaseResponse<bool>> DeleteAspNetRoles(UserGroupRequest request)
