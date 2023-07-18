@@ -200,7 +200,7 @@ namespace Auth.Api.Controllers
 
         [HttpPost("list")]
         public async Task<IActionResult> GetManageUserList([FromBody] UserGroupRequest user, [FromQuery] bool isShowSuperAdmin = false)
-        {
+        {//
             try
             {
                 var result = await _userIdentityService.GetAspNetRoleUsers(user, isShowSuperAdmin);
