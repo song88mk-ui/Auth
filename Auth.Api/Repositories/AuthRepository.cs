@@ -544,25 +544,13 @@ namespace Auth.Api.Repositories
             if (cache != null)
             {
                 var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
-                var result = string.Empty;
+                //var result = string.Empty;
 
-                var exp = parsedToken.Where(x => x.Type == "exp").Select(x => x.Value).FirstOrDefault()?.ToString() ?? string.Empty;
-
-                if(string.IsNullOrEmpty(exp))
+                if (isAgent)
                 {
-                    return new OperatorBaseResponse<object>
-                    {
-                        StatusCode = (int)StatusCode.Unauthorized,
-                        Message = StatusCode.Unauthorized.ToString(),
-                        Result = null
-                    };
-                }
+                    var exp = parsedToken.Where(x => x.Type == "exp").Select(x => x.Value).FirstOrDefault()?.ToString() ?? string.Empty;
 
-                if (int.TryParse(exp, out int expiration))
-                {
-                    var sessionExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expiration);
-
-                    if (sessionExpirationDate < DateTime.UtcNow)
+                    if (string.IsNullOrEmpty(exp))
                     {
                         return new OperatorBaseResponse<object>
                         {
@@ -571,10 +559,22 @@ namespace Auth.Api.Repositories
                             Result = null
                         };
                     }
-                }
 
-                if (isAgent)
-                {
+                    if (int.TryParse(exp, out int expiration))
+                    {
+                        var sessionExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expiration);
+
+                        if (sessionExpirationDate < DateTime.UtcNow)
+                        {
+                            return new OperatorBaseResponse<object>
+                            {
+                                StatusCode = (int)StatusCode.Unauthorized,
+                                Message = StatusCode.Unauthorized.ToString(),
+                                Result = null
+                            };
+                        }
+                    }
+
                     return new OperatorBaseResponse<object>
                     {
                         StatusCode = (int)StatusCode.Success,
