@@ -418,7 +418,6 @@ namespace Auth.Api.Repositories
         }
         public BaseResponse<TokenModel> Authenticate(string token)
         {
-
             using var activity = this._activitySource.StartActivity("authenticate");
 
             try
@@ -546,6 +545,33 @@ namespace Auth.Api.Repositories
             {
                 var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
                 var result = string.Empty;
+
+                var exp = parsedToken.Where(x => x.Type == "exp").Select(x => x.Value).FirstOrDefault()?.ToString() ?? string.Empty;
+
+                if(string.IsNullOrEmpty(exp))
+                {
+                    return new OperatorBaseResponse<object>
+                    {
+                        StatusCode = (int)StatusCode.Unauthorized,
+                        Message = StatusCode.Unauthorized.ToString(),
+                        Result = null
+                    };
+                }
+
+                if (int.TryParse(exp, out int expiration))
+                {
+                    var sessionExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expiration);
+
+                    if (sessionExpirationDate < DateTime.UtcNow)
+                    {
+                        return new OperatorBaseResponse<object>
+                        {
+                            StatusCode = (int)StatusCode.Unauthorized,
+                            Message = StatusCode.Unauthorized.ToString(),
+                            Result = null
+                        };
+                    }
+                }
 
                 if (isAgent)
                 {
