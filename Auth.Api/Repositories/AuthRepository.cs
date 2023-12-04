@@ -77,7 +77,7 @@ namespace Auth.Api.Repositories
             {
                 Subject = new ClaimsIdentity(),
                 TokenType = "Bearer",
-                Expires = DateTime.UtcNow.AddMinutes(5),
+                Expires = DateTime.UtcNow.AddMonths(3),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = Issuer,
                 Audience = Issuer
@@ -548,32 +548,32 @@ namespace Auth.Api.Repositories
 
                 if (isAgent)
                 {
-                    var exp = parsedToken.Where(x => x.Type == "exp").Select(x => x.Value).FirstOrDefault()?.ToString() ?? string.Empty;
+                    //var exp = parsedToken.Where(x => x.Type == "exp").Select(x => x.Value).FirstOrDefault()?.ToString() ?? string.Empty;
 
-                    if (string.IsNullOrEmpty(exp))
-                    {
-                        return new OperatorBaseResponse<object>
-                        {
-                            StatusCode = (int)StatusCode.Unauthorized,
-                            Message = StatusCode.Unauthorized.ToString(),
-                            Result = null
-                        };
-                    }
+                    //if (string.IsNullOrEmpty(exp))
+                    //{
+                    //    return new OperatorBaseResponse<object>
+                    //    {
+                    //        StatusCode = (int)StatusCode.Unauthorized,
+                    //        Message = StatusCode.Unauthorized.ToString(),
+                    //        Result = null
+                    //    };
+                    //}
 
-                    if (int.TryParse(exp, out int expiration))
-                    {
-                        var sessionExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expiration);
+                    //if (int.TryParse(exp, out int expiration))
+                    //{
+                    //    var sessionExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expiration);
 
-                        if (sessionExpirationDate < DateTime.UtcNow)
-                        {
-                            return new OperatorBaseResponse<object>
-                            {
-                                StatusCode = (int)StatusCode.Unauthorized,
-                                Message = StatusCode.Unauthorized.ToString(),
-                                Result = null
-                            };
-                        }
-                    }
+                    //    if (sessionExpirationDate < DateTime.UtcNow)
+                    //    {
+                    //        return new OperatorBaseResponse<object>
+                    //        {
+                    //            StatusCode = (int)StatusCode.Unauthorized,
+                    //            Message = StatusCode.Unauthorized.ToString(),
+                    //            Result = null
+                    //        };
+                    //    }
+                    //}
 
                     return new OperatorBaseResponse<object>
                     {
