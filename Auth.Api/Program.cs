@@ -1,3 +1,5 @@
+using Azure.Identity;
+using Microsoft.AspNetCore.DataProtection;
 using Auth.Api.ActionFilters;
 using Auth.Api.Identity;
 using Auth.Api.Repositories;
@@ -9,6 +11,7 @@ using Auth.Shared.Models.Request;
 using Auth.Shared.Utilities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -83,7 +86,7 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
 }
 
 // Add services to the container.
-builder.Services.AddDbContext<AuthContext>(o => o.UseSqlServer(builder.Configuration["Context:Auth"]));
+builder.Services.AddDbContextPool<AuthContext>(o => o.UseSqlServer(builder.Configuration["Context:Auth"]));
 builder.Services.AddIdentity<AppUser, AppRole>().AddEntityFrameworkStores<AuthContext>()
     //.AddTokenProvider("BoWeb", typeof(DataProtectorTokenProvider<AppUser>))
     .AddDefaultTokenProviders();
@@ -104,6 +107,16 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredLength = 8;
     options.Password.RequiredUniqueChars = 0;
 });
+builder.Services.AddHealthChecks();
+
+// configure dpk when runnin on aca
+if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CONTAINER_APP_ENV_DNS_SUFFIX")))
+{
+  var envName = Environment.GetEnvironmentVariable("AUTH_ENV_NAME");
+  var dpkUri = $"https://song88dpk.blob.core.windows.net/{envName}/auth-api";
+  builder.Services.AddDataProtection()
+    .PersistKeysToAzureBlobStorage(new Uri(dpkUri), new DefaultAzureCredential());
+}
 
 builder.Services.AddCors(options =>
 {
@@ -197,8 +210,9 @@ app.UseSwaggerUI(option =>
 //});
 app.UseCors();
 app.UseAuthorization();
+app.MapHealthChecks("/healthz");
 app.UseAuthentication();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.MapControllers();
 app.Run();

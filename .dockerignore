@@ -1,0 +1,7 @@
+Dockerfile
+Auth.sln
+**/*.md
+**/.config
+**/.vscode
+**/obj
+**/bin
