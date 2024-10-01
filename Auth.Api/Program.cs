@@ -108,6 +108,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredUniqueChars = 0;
 });
 builder.Services.AddHealthChecks();
+builder.Services.AddApplicationInsightsTelemetry();
 
 // configure dpk when runnin on aca
 if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CONTAINER_APP_ENV_DNS_SUFFIX")))
