@@ -7,8 +7,11 @@ trigger:
   batch: true
   branches:
     include:
-      - master
+      - main
   paths:
+    include:
+      - Auth.Api
+      - Auth.Shared
     exclude:
       - .github
       - '**/*.md'
