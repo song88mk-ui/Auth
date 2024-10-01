@@ -113,7 +113,7 @@ builder.Services.AddHealthChecks();
 if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CONTAINER_APP_ENV_DNS_SUFFIX")))
 {
   var envName = Environment.GetEnvironmentVariable("AUTH_ENV_NAME");
-  var dpkUri = $"https://song88dpk.blob.core.windows.net/{envName}/auth-api";
+  var dpkUri = $"https://song88dpk.blob.core.windows.net/{envName}/auth-api/dpk";
   builder.Services.AddDataProtection()
     .PersistKeysToAzureBlobStorage(new Uri(dpkUri), new DefaultAzureCredential());
 }
