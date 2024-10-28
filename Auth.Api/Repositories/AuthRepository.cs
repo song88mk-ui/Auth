@@ -516,6 +516,8 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
+                            UserName = user.UserName,
+                            NickName = user.NickName ?? user.UserName,
                             OperatorToken = userToken.OperatorToken ?? "",
                             AccessToken = userToken.Value
                         }

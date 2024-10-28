@@ -4,10 +4,6 @@ using Auth.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.SqlServer.Server;
-using Newtonsoft.Json.Linq;
-using System.Net;
-using UAParser;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
 namespace Auth.Api.Controllers
