@@ -107,7 +107,7 @@ namespace Auth.Api.Controllers
         /// <remarks>
         /// </remarks>
         /// <return></return>
-        /// <response code="200">Valid operator tokena
+        /// <response code="200">Valid operator token
         /// <para>Result = 1000 - Success</para></response>
         /// <response code="400">Bad Request
         /// <para>Result = 1001 - Bad Request</para></response>
@@ -126,6 +126,7 @@ namespace Auth.Api.Controllers
         {
             try
             {
+                var appIdHeaderRequest = HttpContext.Request.Headers["x-app-id"].FirstOrDefault();
                 var agentHeaderRequest = HttpContext.Request.Headers["x-is-agent"].FirstOrDefault();
 
                 var isAgent = false;
@@ -145,7 +146,7 @@ namespace Auth.Api.Controllers
                 var token = HttpContext.Request.Headers["x-operator-token"].FirstOrDefault();
                 if (token != null)
                 {
-                    result = _authRepository.AuthenticateOperator(token, isAgent);
+                    result = _authRepository.AuthenticateOperator(token, appIdHeaderRequest, isAgent);
                 }
 
                 switch (result.StatusCode)

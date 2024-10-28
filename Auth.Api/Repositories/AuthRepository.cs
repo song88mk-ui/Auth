@@ -18,7 +18,6 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Transactions;
-using UAParser;
 
 namespace Auth.Api.Repositories
 {
@@ -424,8 +423,6 @@ namespace Auth.Api.Repositories
 
             try
             {
-                SecurityToken jwtToken = null;
-
                 if (string.IsNullOrWhiteSpace(token))
                 {
                     return new BaseResponse<TokenModel>
@@ -437,9 +434,24 @@ namespace Auth.Api.Repositories
                 }
 
                 var handler = new JwtSecurityTokenHandler();
-                jwtToken = handler.ReadToken(token);
 
-                if (jwtToken == null)
+                var validationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(TokenKey),
+                    ValidateIssuer = true,
+                    ValidIssuer = Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = Issuer,
+                    ValidateLifetime = false,
+                    ClockSkew = TimeSpan.Zero
+                };
+
+                try
+                {
+                    handler.ValidateToken(token, validationParameters, out SecurityToken jwtToken);
+                }
+                catch (Exception)
                 {
                     return new BaseResponse<TokenModel>
                     {
@@ -449,21 +461,10 @@ namespace Auth.Api.Repositories
                     };
                 }
 
-                // Invalid Isuer
-                if (jwtToken.Issuer != _configuration["JWT:Issuer"])
-                {
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Invalid Issuer.",
-                        Result = null
-                    };
-                }
-
                 var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                 var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
                 var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
-                var operatorToken = parsedToken.Where(x => x.Type == "OperatorToken").Select(x => x.Value).FirstOrDefault();
+                var operatorToken = parsedToken.Where(x => x.Type == "UserToken").Select(x => x.Value).FirstOrDefault();
 
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
@@ -479,8 +480,19 @@ namespace Auth.Api.Repositories
                         };
                     }
 
-                    if (userToken.Value != token || (!string.IsNullOrEmpty(operatorToken) && operatorToken != userToken.OperatorToken))
+                    if (string.IsNullOrEmpty(operatorToken) && userToken.Value != token)
                     {
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Invalid Token.",
+                            Result = null
+                        };
+                    }
+                    //todo: use this in BO validation
+                    if (!string.IsNullOrEmpty(operatorToken) && userToken.OperatorToken != operatorToken)
+                    {
+
                         return new BaseResponse<TokenModel>
                         {
                             StatusCode = StatusCode.Unauthorized,
@@ -519,8 +531,6 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new TokenModel()
                         {
-                            UserName = user.UserName,
-                            NickName = user.NickName ?? user.UserName,
                             OperatorToken = userToken.OperatorToken ?? "",
                             AccessToken = userToken.Value
                         }
@@ -542,75 +552,49 @@ namespace Auth.Api.Repositories
                 activity?.Stop();
             }
         }
-        public OperatorBaseResponse<object> AuthenticateOperator(string token, bool isAgent = false)
+
+        public OperatorBaseResponse<object> AuthenticateOperator(string token,string? appId, bool isAgent = false)
         {
             var cache = _memCache.GetCache<AppToken>($"ot:{token}");
+            var userType = isAgent ? "UserIdRef" : "UserId";
 
             if (cache != null)
             {
                 var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
-                //var result = string.Empty;
+                var userId = parsedToken.FirstOrDefault(x => x.Type == userType).Value;
+                var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName").Value;
+                var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName").Value;
 
-                if (isAgent)
+                return new OperatorBaseResponse<object>
                 {
-                    //var exp = parsedToken.Where(x => x.Type == "exp").Select(x => x.Value).FirstOrDefault()?.ToString() ?? string.Empty;
-
-                    //if (string.IsNullOrEmpty(exp))
-                    //{
-                    //    return new OperatorBaseResponse<object>
-                    //    {
-                    //        StatusCode = (int)StatusCode.Unauthorized,
-                    //        Message = StatusCode.Unauthorized.ToString(),
-                    //        Result = null
-                    //    };
-                    //}
-
-                    //if (int.TryParse(exp, out int expiration))
-                    //{
-                    //    var sessionExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expiration);
-
-                    //    if (sessionExpirationDate < DateTime.UtcNow)
-                    //    {
-                    //        return new OperatorBaseResponse<object>
-                    //        {
-                    //            StatusCode = (int)StatusCode.Unauthorized,
-                    //            Message = StatusCode.Unauthorized.ToString(),
-                    //            Result = null
-                    //        };
-                    //    }
-                    //}
-
-                    return new OperatorBaseResponse<object>
+                    StatusCode = (int)StatusCode.Success,
+                    Message = StatusCode.Success.ToString(),
+                    Result = new
                     {
-                        StatusCode = (int)StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = new
-                        {
-                            UserId = parsedToken.Where(x => x.Type == "UserIdRef").Select(x => x.Value).FirstOrDefault().ToString()
-                        }
-                    };
-                }
-                else
-                {
-                    return new OperatorBaseResponse<object>
-                    {
-                        StatusCode = (int)StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = new
-                        {
-                            UserId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault().ToString()
-                        }
-                    };
-                }
+                        UserId = userId.ToString(),
+                        UserName = tokenName,
+                        NickName = nickName ?? tokenName,
+                    }
+                };
             }
 
             try
             {
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
                     var userToken = _authContext.UserTokens.AsNoTracking().Where(x => x.OperatorToken == token).FirstOrDefault();
 
                     if (userToken == null)
+                    {
+                        return new OperatorBaseResponse<object>
+                        {
+                            StatusCode = (int)StatusCode.Unauthorized,
+                            Message = StatusCode.Unauthorized.ToString(),
+                            Result = null
+                        };
+                    }
+
+                    if(appId != null && userToken.LoginProvider != appId)
                     {
                         return new OperatorBaseResponse<object>
                         {
@@ -633,32 +617,21 @@ namespace Auth.Api.Repositories
                     scope.Complete();
 
                     var parsedToken = JwtParser.ParseClaimsFromJwt(userToken.Value).ToList();
-                    var result = string.Empty;
+                    var userId = parsedToken.FirstOrDefault(x => x.Type == userType)?.Value;
+                    var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value;
+                    var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value;
 
-                    if (isAgent)
+                    return new OperatorBaseResponse<object>
                     {
-                        return new OperatorBaseResponse<object>
+                        StatusCode = (int)StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new
                         {
-                            StatusCode = (int)StatusCode.Success,
-                            Message = StatusCode.Success.ToString(),
-                            Result = new
-                            {
-                                UserId = parsedToken.Where(x => x.Type == "UserIdRef").Select(x => x.Value).FirstOrDefault().ToString()
-                            }
-                        };
-                    }
-                    else
-                    {
-                        return new OperatorBaseResponse<object>
-                        {
-                            StatusCode = (int)StatusCode.Success,
-                            Message = StatusCode.Success.ToString(),
-                            Result = new
-                            {
-                                UserId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault().ToString()
-                            }
-                        };
-                    }
+                            UserId = userId,
+                            UserName = tokenName,
+                            NickName = nickName ?? tokenName,
+                        }
+                    };
                 };
             }
             catch (Exception ex)
