@@ -463,6 +463,7 @@ namespace Auth.Api.Repositories
                 var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                 var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
                 var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+                var operatorToken = parsedToken.Where(x => x.Type == "OperatorToken").Select(x => x.Value).FirstOrDefault();
 
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
@@ -478,7 +479,7 @@ namespace Auth.Api.Repositories
                         };
                     }
 
-                    if (userToken.Value != token)
+                    if (userToken.Value != token || (!string.IsNullOrEmpty(operatorToken) && operatorToken != userToken.OperatorToken))
                     {
                         return new BaseResponse<TokenModel>
                         {
