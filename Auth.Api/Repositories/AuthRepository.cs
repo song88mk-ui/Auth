@@ -73,11 +73,13 @@ namespace Auth.Api.Repositories
 
         private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, int version = 0, long userIdRef = 0l, long mainUserIdRef = 0l)
         {
+            var expiration = provider.Equals($"{(int)Application.ClientChecklist}") ? DateTime.MaxValue : DateTime.UtcNow.AddMonths(3);
+
             var token = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(),
                 TokenType = "Bearer",
-                Expires = DateTime.UtcNow.AddMonths(3),
+                Expires = expiration,
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(TokenKey), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = Issuer,
                 Audience = Issuer
