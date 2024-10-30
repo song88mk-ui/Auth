@@ -173,7 +173,7 @@ namespace Auth.Api.Repositories
         }
         private void SaveToken(AppUser user, string token, string operatorToken, LoginModel? loginModel = null)
         {
-            using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+            using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
                 var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
                 var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
@@ -348,6 +348,7 @@ namespace Auth.Api.Repositories
                 activity?.Stop();
             }
         }
+
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
             using var activity = this._activitySource.StartActivity("logout");
@@ -615,6 +616,21 @@ namespace Auth.Api.Repositories
                     }
 
                     scope.Complete();
+
+                    if(string.IsNullOrEmpty(userToken.Value) && userToken.LoginProvider == $"{(int)Application.ClientChecklist}")
+                    {
+                        return new OperatorBaseResponse<object>
+                        {
+                            StatusCode = (int)StatusCode.Success,
+                            Message = StatusCode.Success.ToString(),
+                            Result = new
+                            {
+                                UserId = userToken.UserId,
+                                UserName = userToken.Name,
+                                NickName = userToken.Name
+                            }
+                        };
+                    }
 
                     var parsedToken = JwtParser.ParseClaimsFromJwt(userToken.Value).ToList();
                     var userId = parsedToken.FirstOrDefault(x => x.Type == userType)?.Value;

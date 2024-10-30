@@ -28,5 +28,6 @@ namespace Auth.Api.Services
         Task<BaseResponse<IdentityRole>> GetCurrentUserRole(AppUser user);
         Task<BaseResponse<UserResponse>> GetCurrentUser(string userId);
         Task<BaseResponse<ReportRolesUrlResponse>> GetReportRolesUrl(ReportRolesUrlRequest request);
+        Task<BaseResponse<string>> CreateClientToken(ClientRegisterRequest request);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Auth.Shared.Data.Auth;
+using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
@@ -1027,6 +1028,48 @@ namespace Auth.Api.Services
             catch (Exception ex)
             {
                 return new BaseResponse<ReportRolesUrlResponse>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
+            }
+        }
+
+        public async Task<BaseResponse<string>> CreateClientToken(ClientRegisterRequest request)
+        {
+            try
+            {
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                {
+                    var sessionExpirationDate = DateTime.MaxValue;
+                    var operatorToken = Guid.NewGuid();
+
+                    var newToken = new AppToken
+                    {
+                        UserId = request.ClientId,
+                        LoginProvider = $"{(int)Application.ClientChecklist}",
+                        Name = request.ClientName,
+                        Value = string.Empty,
+                        OperatorToken = operatorToken.ToString(),
+                        SessionExpirationDate = sessionExpirationDate
+                    };
+
+                    _authContext.UserTokens.Add(newToken);
+
+                    _authContext.SaveChanges();
+                    scope.Complete();
+
+                    return new BaseResponse<string>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = $"{StatusCode.Success})",
+                        Result = operatorToken.ToString()
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<string>
                 {
                     StatusCode = StatusCode.Error,
                     Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
