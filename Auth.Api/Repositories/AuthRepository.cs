@@ -246,6 +246,8 @@ namespace Auth.Api.Repositories
                 }
 
                 activity?.SetTag("user.name", content.Username);
+                activity?.SetTag("ip.address", content.IpAddress);
+                activity?.SetTag("country.code", content.Country);
 
                 // if main user get from role claims
                 // if sub user get from user claims
