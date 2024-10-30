@@ -1067,7 +1067,7 @@ namespace Auth.Api.Services
                     return new BaseResponse<string>
                     {
                         StatusCode = StatusCode.Success,
-                        Message = $"{StatusCode.Success})",
+                        Message = $"{StatusCode.Success}",
                         Result = operatorToken.ToString()
                     };
                 }
