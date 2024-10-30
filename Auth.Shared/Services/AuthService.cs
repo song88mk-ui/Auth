@@ -1,5 +1,4 @@
 ﻿using Auth.Shared.Data.Auth;
-using Auth.Shared.Data.Auth.Entities;
 using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
@@ -9,7 +8,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.Collections.Generic;
 using System.Security.Claims;
 using System.Transactions;
 
@@ -1035,10 +1033,17 @@ namespace Auth.Api.Services
             }
         }
 
-        public async Task<BaseResponse<string>> CreateClientToken(ClientRegisterRequest request)
+        public async Task<BaseResponse<string>> CreateClientToken(ClientRegisterRequest request, string appId)
         {
             try
             {
+                if(appId != $"{(int)Application.ClientChecklist}")
+                    return new BaseResponse<string>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = $"{StatusCode.Unauthorized}"
+                    };
+
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
                     var sessionExpirationDate = DateTime.MaxValue;
@@ -1047,7 +1052,7 @@ namespace Auth.Api.Services
                     var newToken = new AppToken
                     {
                         UserId = request.ClientId,
-                        LoginProvider = $"{(int)Application.ClientChecklist}",
+                        LoginProvider = appId,
                         Name = request.ClientName,
                         Value = string.Empty,
                         OperatorToken = operatorToken.ToString(),

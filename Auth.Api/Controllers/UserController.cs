@@ -4,10 +4,8 @@ using Auth.Api.Services;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Request;
 using Auth.Shared.Models.Response;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using System.Security;
 using AuthorizeAttribute = Auth.Api.ActionFilters.AuthorizeAttribute;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
 
@@ -414,7 +412,9 @@ namespace Auth.Api.Controllers
         {
             try
             {
-                var result = await _userIdentityService.CreateClientToken(request);
+                var appIdHeaderRequest = HttpContext.Request.Headers["x-app-id"].FirstOrDefault();
+
+                var result = await _userIdentityService.CreateClientToken(request, appIdHeaderRequest);
 
                 switch (result.StatusCode)
                 {
