@@ -47,7 +47,14 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
       tracing
         .AddSource(Instrumentation.ActivitySourceName)
         .SetSampler(new AlwaysOnSampler())
-        .AddHttpClientInstrumentation()
+        .AddHttpClientInstrumentation(
+            (options) => options.FilterHttpRequestMessage =
+              (httpRequestMessage) =>
+              {
+                // skip calls made to azure app insights
+                return !httpRequestMessage.Headers.Host.Contains("monitor.azure.com");
+              }
+        )
         .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
         {
           // observe /v1(/.*) only
