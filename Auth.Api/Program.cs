@@ -52,8 +52,8 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
               (httpRequestMessage) =>
               {
                 // skip calls made to azure app insights
-                return !httpRequestMessage.RequestUri.Contains("monitor.azure.com") ||
-                  !httpRequestMessage.RequestUri.Contains("visualstudio.com");
+                return !httpRequestMessage.RequestUri.ToString().Contains("monitor.azure.com") ||
+                  !httpRequestMessage.RequestUri.ToString().Contains("visualstudio.com");
               }
         )
         .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
