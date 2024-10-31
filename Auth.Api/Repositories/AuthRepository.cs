@@ -558,6 +558,8 @@ namespace Auth.Api.Repositories
 
         public OperatorBaseResponse<object> AuthenticateOperator(string token,string? appId, bool isAgent = false)
         {
+            using var activity = this._activitySource.StartActivity("authenticate-operator");
+
             var cache = _memCache.GetCache<AppToken>($"ot:{token}");
             var userType = isAgent ? "UserIdRef" : "UserId";
 
@@ -567,6 +569,8 @@ namespace Auth.Api.Repositories
                 var userId = parsedToken.FirstOrDefault(x => x.Type == userType).Value;
                 var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName").Value;
                 var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName").Value;
+
+                activity?.Stop();
 
                 return new OperatorBaseResponse<object>
                 {
@@ -618,8 +622,9 @@ namespace Auth.Api.Repositories
                     }
 
                     scope.Complete();
+                    activity?.SetStatus(ActivityStatusCode.Ok);
 
-                    if(string.IsNullOrEmpty(userToken.Value) && userToken.LoginProvider == $"{(int)Application.ClientChecklist}")
+                    if (string.IsNullOrEmpty(userToken.Value) && userToken.LoginProvider == $"{(int)Application.ClientChecklist}")
                     {
                         return new OperatorBaseResponse<object>
                         {
@@ -654,12 +659,18 @@ namespace Auth.Api.Repositories
             }
             catch (Exception ex)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+
                 return new OperatorBaseResponse<object>
                 {
                     StatusCode = (int)StatusCode.Error,
                     Message = ex.Message,
                     Result = null
                 };
+            }
+            finally
+            {
+                activity?.Stop();
             }
         }
         public async Task<BaseResponse<TokenModel>> AuthenticateSecurityCode(AuthenticateSecurityCodeRequest request)
