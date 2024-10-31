@@ -31,7 +31,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Telemetry
 Action<ResourceBuilder> configureResource = r => r.AddService(
-    serviceName: "Authentication-API",
+    serviceName: "Authentication.API",
     serviceNamespace: builder.Configuration["Telemetry:Environment"],
     serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
     serviceInstanceId: Environment.MachineName);
@@ -53,8 +53,9 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
               {
                 // skip calls made to azure app insights
                 var uriString = httpRequestMessage.RequestUri.ToString();
-                return uriString.Contains("monitor.azure.com") ||
-                       uriString.Contains("visualstudio.com");
+                var isAzureReq = uriString.Contains("monitor.azure.com") ||
+                                 uriString.Contains("visualstudio.com");
+                return !isAzureReq;
               }
         )
         .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
