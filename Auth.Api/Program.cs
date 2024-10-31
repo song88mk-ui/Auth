@@ -52,7 +52,8 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
               (httpRequestMessage) =>
               {
                 // skip calls made to azure app insights
-                return !httpRequestMessage.Headers.Host.Contains("monitor.azure.com");
+                return !httpRequestMessage.RequestUri.Contains("monitor.azure.com") ||
+                  !httpRequestMessage.RequestUri.Contains("visualstudio.com");
               }
         )
         .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
@@ -62,8 +63,7 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
         })
         .AddSqlClientInstrumentation();
 
-
-      builder.Services.Configure<AspNetCoreInstrumentationOptions>(builder.Configuration.GetSection("Telemetry:AspNetCoreInstrumentation"));
+      builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(builder.Configuration.GetSection("Telemetry:AspNetCoreInstrumentation"));
 
 
       tracing.AddOtlpExporter(otlpOptions =>
