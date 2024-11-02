@@ -16,7 +16,8 @@ RUN dotnet publish -c Release \
 
 RUN cd /app/publish && rm -f appsettings.*.json
 
-FROM mcr.microsoft.com/dotnet/aspnet:6.0
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine
+RUN apk add --no-cache icu-libs
 EXPOSE 80
 
 WORKDIR /app
