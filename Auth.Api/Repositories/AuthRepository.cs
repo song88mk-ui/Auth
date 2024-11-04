@@ -479,10 +479,11 @@ namespace Auth.Api.Repositories
                     using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                     {
                         var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider);
+                        activity?.AddEvent(new ActivityEvent("fetched.db.token"));
 
                         if (userToken == null)
                         {
-                            activity?.SetTag("db.error", "userToken is null");
+                            activity?.SetTag("auth.error", "null userToken");
                             activity?.SetStatus(ActivityStatusCode.Error);
                             return new BaseResponse<TokenModel>
                             {
@@ -495,7 +496,7 @@ namespace Auth.Api.Repositories
                         activity?.SetTag("db.user.token", userToken.Value);
                         if (string.IsNullOrEmpty(operatorToken) && userToken.Value != token)
                         {
-                            activity?.SetTag("db.error", "operatorToken and userToken.Value!=token");
+                            activity?.SetTag("auth.error", "userToken.Value!=token");
                             activity?.SetStatus(ActivityStatusCode.Error);
                             return new BaseResponse<TokenModel>
                             {
@@ -507,7 +508,7 @@ namespace Auth.Api.Repositories
                         //todo: use this in BO validation
                         if (!string.IsNullOrEmpty(operatorToken) && userToken.OperatorToken != operatorToken)
                         {
-                            activity?.SetTag("db.error", "userToken.OperatorToken!=operatorToken");
+                            activity?.SetTag("auth.error", "userToken.OperatorToken!=operatorToken");
                             activity?.SetStatus(ActivityStatusCode.Error);
                             return new BaseResponse<TokenModel>
                             {

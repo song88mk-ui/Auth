@@ -18,11 +18,13 @@ namespace Auth.Api.Controllers
     {
         private IAuthService _userIdentityService { get; set; }
         private readonly IAuthRepository _authRepository;
+        private readonly ILogger<UserController> _logger;
 
-        public UserController(IAuthService userIdentityService, IAuthRepository authRepository)
+        public UserController(IAuthService userIdentityService, IAuthRepository authRepository, ILogger<UserController> logger)
         {
             _userIdentityService = userIdentityService;
             _authRepository = authRepository;
+            _logger = logger;
         }
 
         [HttpPost("register")]
@@ -44,6 +46,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/register error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -67,6 +70,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/modify error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -110,6 +114,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/modify error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -169,6 +174,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/currentuser error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -192,6 +198,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/get error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -215,6 +222,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/list error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -238,6 +246,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/subaccount/list error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -269,6 +278,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/permission/list error: {ex.Message}");
                 return BadRequest(null);
             }
         }
@@ -334,6 +344,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/usergroup/post error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -357,6 +368,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"user/usergroup/delete error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -380,6 +392,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"activitylog/list error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -403,6 +416,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"report/roles error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -428,6 +442,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"client/token error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }

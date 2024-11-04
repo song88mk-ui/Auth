@@ -18,10 +18,12 @@ namespace Auth.Api.Controllers
         //
         private readonly IAuthRepository _authRepository;
         private readonly ActivitySource _activitySource;
-        public AuthController(IAuthRepository authRepository, Instrumentation instrumentation)
+        private readonly ILogger<AuthController> _logger;
+        public AuthController(IAuthRepository authRepository, Instrumentation instrumentation, ILogger<AuthController> logger)
         {
             this._authRepository = authRepository;
             this._activitySource = instrumentation.ActivitySource;
+            this._logger = logger;
         }
         /// <summary>
         /// Loging credential
@@ -63,6 +65,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"authentication/login error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -108,6 +111,7 @@ namespace Auth.Api.Controllers
                 catch (Exception ex)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    _logger.LogError($"authentication/access error: {ex.Message}");
                     return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
                 }
             }
@@ -173,6 +177,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"authentication/operator error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -207,6 +212,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"authentication/security error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -246,6 +252,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"authentication/logout error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -270,6 +277,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"authentication/online error: {ex.Message}");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
