@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -35,6 +36,12 @@ Action<ResourceBuilder> configureResource = r => r.AddService(
     serviceNamespace: builder.Configuration["Telemetry:Environment"],
     serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
     serviceInstanceId: Environment.MachineName);
+
+// use console logging for ACA as single line
+// so it can be viewed on Logs as one line rather
+// than multiple lines
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(opts => { opts.SingleLine = true; });
 
 builder.Services.AddSingleton<Instrumentation>();
 
