@@ -422,137 +422,150 @@ namespace Auth.Api.Repositories
         }
         public BaseResponse<TokenModel> Authenticate(string token)
         {
-            using var activity = this._activitySource.StartActivity("authenticate");
-
-            try
+            using(var activity = this._activitySource.StartActivity("authenticate"))
             {
-                if (string.IsNullOrWhiteSpace(token))
-                {
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Empty Token.",
-                        Result = null
-                    };
-                }
-
-                var handler = new JwtSecurityTokenHandler();
-
-                var validationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(TokenKey),
-                    ValidateIssuer = true,
-                    ValidIssuer = Issuer,
-                    ValidateAudience = true,
-                    ValidAudience = Issuer,
-                    ValidateLifetime = false,
-                    ClockSkew = TimeSpan.Zero
-                };
+                activity?.SetTag("token", token);
 
                 try
                 {
-                    handler.ValidateToken(token, validationParameters, out SecurityToken jwtToken);
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Empty Token.",
+                            Result = null
+                        };
+                    }
+
+                    var handler = new JwtSecurityTokenHandler();
+
+                    var validationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(TokenKey),
+                        ValidateIssuer = true,
+                        ValidIssuer = Issuer,
+                        ValidateAudience = true,
+                        ValidAudience = Issuer,
+                        ValidateLifetime = false,
+                        ClockSkew = TimeSpan.Zero
+                    };
+
+                    try
+                    {
+                        handler.ValidateToken(token, validationParameters, out SecurityToken jwtToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "Invalid Token.",
+                            Result = null
+                        };
+                    }
+
+                    var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
+                    var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+                    var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
+                    var operatorToken = parsedToken.Where(x => x.Type == "UserToken").Select(x => x.Value).FirstOrDefault();
+
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                    {
+                        var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider);
+
+                        if (userToken == null)
+                        {
+                            activity?.SetTag("db.error", "userToken is null");
+                            activity?.SetStatus(ActivityStatusCode.Error);
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Invalid Token.",
+                                Result = null
+                            };
+                        }
+
+                        if (string.IsNullOrEmpty(operatorToken) && userToken.Value != token)
+                        {
+                            activity?.SetTag("db.error", "operatorToken and userToken.Value!=token");
+                            activity?.SetStatus(ActivityStatusCode.Error);
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Invalid Token.",
+                                Result = null
+                            };
+                        }
+                        //todo: use this in BO validation
+                        if (!string.IsNullOrEmpty(operatorToken) && userToken.OperatorToken != operatorToken)
+                        {
+                            activity?.SetTag("db.error", "userToken.OperatorToken!=operatorToken");
+                            activity?.SetStatus(ActivityStatusCode.Error);
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Invalid Token.",
+                                Result = null
+                            };
+                        }
+
+                        var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
+                        if (user.LockoutEnd != null)
+                        {
+                            activity?.SetTag("auth.error", "user.lockoutEnd!=null");
+                            activity?.SetStatus(ActivityStatusCode.Error);
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Invalid Token.",
+                                Result = null
+                            };
+                        }
+
+                        if (userToken.SessionExpirationDate < DateTime.UtcNow)
+                        {
+                            var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
+
+                            currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                            activity?.AddEvent(new ActivityEvent("user.tokens.update"));
+
+                            _authContext.UserTokens.Update(currentUserToken);
+                            _authContext.SaveChanges();
+                        }
+
+                        scope.Complete();
+                        activity?.SetStatus(ActivityStatusCode.Ok);
+
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Success,
+                            Message = StatusCode.Success.ToString(),
+                            Result = new TokenModel()
+                            {
+                                OperatorToken = userToken.OperatorToken ?? "",
+                                AccessToken = userToken.Value
+                            }
+                        };
+                    };
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     return new BaseResponse<TokenModel>
                     {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "Invalid Token.",
+                        StatusCode = StatusCode.Error,
+                        Message = ex.Message,
                         Result = null
                     };
                 }
-
-                var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
-                var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-                var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
-                var operatorToken = parsedToken.Where(x => x.Type == "UserToken").Select(x => x.Value).FirstOrDefault();
-
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                finally
                 {
-                    var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider);
+                    activity?.Stop();
+                }
 
-                    if (userToken == null)
-                    {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
-
-                    if (string.IsNullOrEmpty(operatorToken) && userToken.Value != token)
-                    {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
-                    //todo: use this in BO validation
-                    if (!string.IsNullOrEmpty(operatorToken) && userToken.OperatorToken != operatorToken)
-                    {
-
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
-
-                    var user = _authContext.Users.AsNoTracking().FirstOrDefault(x => x.Id == userId);
-                    if (user.LockoutEnd != null)
-                    {
-                        return new BaseResponse<TokenModel>
-                        {
-                            StatusCode = StatusCode.Unauthorized,
-                            Message = "Invalid Token.",
-                            Result = null
-                        };
-                    }
-
-                    if (userToken.SessionExpirationDate < DateTime.UtcNow)
-                    {
-                        var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
-
-                        currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-
-                        _authContext.UserTokens.Update(currentUserToken);
-                        _authContext.SaveChanges();
-                    }
-
-                    scope.Complete();
-                    activity?.SetStatus(ActivityStatusCode.Ok);
-
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Success,
-                        Message = StatusCode.Success.ToString(),
-                        Result = new TokenModel()
-                        {
-                            OperatorToken = userToken.OperatorToken ?? "",
-                            AccessToken = userToken.Value
-                        }
-                    };
-                };
-            }
-            catch (Exception ex)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                return new BaseResponse<TokenModel>
-                {
-                    StatusCode = StatusCode.Error,
-                    Message = ex.Message,
-                    Result = null
-                };
-            }
-            finally
-            {
-                activity?.Stop();
             }
         }
 
