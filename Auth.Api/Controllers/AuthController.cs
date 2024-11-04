@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using AuthStatusCode = Auth.Shared.Enums.StatusCode;
+using System.Diagnostics;
+using Auth.Api.Telemetry;
 
 namespace Auth.Api.Controllers
 {
@@ -15,9 +17,11 @@ namespace Auth.Api.Controllers
     {
         //
         private readonly IAuthRepository _authRepository;
-        public AuthController(IAuthRepository authRepository)
+        private readonly ActivitySource _activitySource;
+        public AuthController(IAuthRepository authRepository, Instrumentation instrumentation)
         {
             this._authRepository = authRepository;
+            this._activitySource = instrumentation.ActivitySource;
         }
         /// <summary>
         /// Loging credential
@@ -71,33 +75,40 @@ namespace Auth.Api.Controllers
         [Route("authentication/access")]
         public async Task<IActionResult> AuthenticateAccess()
         {
-            try
+            using (var activity = _activitySource.StartActivity("authentication/access"))
             {
-                //
-                var result = new BaseResponse<TokenModel>()
+                activity?.SetTag("authorization", HttpContext.Request.Headers["Authorization"]);
+                try
                 {
-                    StatusCode = AuthStatusCode.Unauthorized,
-                    Message = "Missing authorization"
-                };
-                if (HttpContext.Request.Headers.ContainsKey("Authorization"))
-                {
-                    var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                    result = _authRepository.Authenticate(token);
-                }
+                    //
+                    var result = new BaseResponse<TokenModel>()
+                    {
+                        StatusCode = AuthStatusCode.Unauthorized,
+                        Message = "Missing authorization"
+                    };
+                    if (HttpContext.Request.Headers.ContainsKey("Authorization"))
+                    {
+                        var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+                        result = _authRepository.Authenticate(token);
+                    }
 
-                switch (result.StatusCode)
-                {
-                    case AuthStatusCode.Success:
-                        return Ok(result);
-                    case AuthStatusCode.Unauthorized:
-                        return Unauthorized(result);
-                    default:
-                        return BadRequest(result);
+                    activity?.SetTag("status.code", result.StatusCode);
+
+                    switch (result.StatusCode)
+                    {
+                        case AuthStatusCode.Success:
+                            return Ok(result);
+                        case AuthStatusCode.Unauthorized:
+                            return Unauthorized(result);
+                        default:
+                            return BadRequest(result);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+                catch (Exception ex)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+                }
             }
         }
 
