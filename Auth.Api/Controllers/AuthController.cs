@@ -93,6 +93,7 @@ namespace Auth.Api.Controllers
                     }
 
                     activity?.SetTag("status.code", result.StatusCode);
+                    activity?.SetTag("status.message", result.Message);
 
                     switch (result.StatusCode)
                     {
