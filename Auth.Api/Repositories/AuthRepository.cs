@@ -472,6 +472,10 @@ namespace Auth.Api.Repositories
                     var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
                     var operatorToken = parsedToken.Where(x => x.Type == "UserToken").Select(x => x.Value).FirstOrDefault();
 
+                    activity?.SetTag("parsed.user.id", userId);
+                    activity?.SetTag("parsed.operator.token", operatorToken);
+                    activity?.SetTag("parsed.provider", provider);
+
                     using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                     {
                         var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider);
@@ -488,6 +492,7 @@ namespace Auth.Api.Repositories
                             };
                         }
 
+                        activity?.SetTag("db.user.token", userToken.Value);
                         if (string.IsNullOrEmpty(operatorToken) && userToken.Value != token)
                         {
                             activity?.SetTag("db.error", "operatorToken and userToken.Value!=token");
