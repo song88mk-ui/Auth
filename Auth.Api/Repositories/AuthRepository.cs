@@ -586,8 +586,8 @@ namespace Auth.Api.Repositories
             {
                 var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
                 var userId = parsedToken.FirstOrDefault(x => x.Type == userType).Value;
-                var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName").Value;
-                var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName").Value;
+                var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value ?? string.Empty;
+                var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value ?? string.Empty;
 
                 activity?.Stop();
 
