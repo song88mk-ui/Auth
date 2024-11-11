@@ -662,6 +662,7 @@ namespace Auth.Api.Repositories
                     var userId = parsedToken.FirstOrDefault(x => x.Type == userType)?.Value;
                     var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value;
                     var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value;
+                    var roleName = parsedToken.FirstOrDefault(x => x.Type == "RoleName")?.Value;
 
                     return new OperatorBaseResponse<object>
                     {
@@ -672,6 +673,7 @@ namespace Auth.Api.Repositories
                             UserId = userId,
                             UserName = tokenName,
                             NickName = nickName ?? tokenName,
+                            RoleName = roleName ?? string.Empty
                         }
                     };
                 };
