@@ -588,6 +588,7 @@ namespace Auth.Api.Repositories
                 var userId = parsedToken.FirstOrDefault(x => x.Type == userType).Value;
                 var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value ?? string.Empty;
                 var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value ?? string.Empty;
+                var roleName = parsedToken.FirstOrDefault(x => x.Type == "RoleName")?.Value ?? string.Empty;
 
                 activity?.Stop();
 
@@ -600,6 +601,7 @@ namespace Auth.Api.Repositories
                         UserId = userId.ToString(),
                         UserName = tokenName,
                         NickName = nickName ?? tokenName,
+                        RoleName = roleName ?? string.Empty,
                     }
                 };
             }
