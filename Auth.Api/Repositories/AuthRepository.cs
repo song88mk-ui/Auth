@@ -176,7 +176,7 @@ namespace Auth.Api.Repositories
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
                 var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
-                var sessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                var sessionExpirationDate = loginModel?.Provider == $"{(int)Application.ClientChecklist}" ? DateTime.MaxValue : DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
 
                 if (oldToken != null)
                 {
