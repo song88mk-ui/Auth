@@ -1049,18 +1049,27 @@ namespace Auth.Api.Services
                     var sessionExpirationDate = DateTime.MaxValue;
                     var operatorToken = Guid.NewGuid();
 
-                    var newToken = new AppToken
+                    var client = _authContext.UserTokens.FirstOrDefault(u => u.UserId == request.ClientId);
+
+                    if(client == null)
                     {
-                        UserId = request.ClientId,
-                        LoginProvider = appId,
-                        Name = request.ClientName,
-                        Value = string.Empty,
-                        OperatorToken = operatorToken.ToString(),
-                        SessionExpirationDate = sessionExpirationDate
-                    };
+                        var newToken = new AppToken
+                        {
+                            UserId = request.ClientId,
+                            LoginProvider = appId,
+                            Name = request.ClientName,
+                            Value = string.Empty,
+                            OperatorToken = operatorToken.ToString(),
+                            SessionExpirationDate = sessionExpirationDate
+                        };
 
-                    _authContext.UserTokens.Add(newToken);
-
+                        _authContext.UserTokens.Add(newToken);
+                    }
+                    else
+                    {
+                        client.OperatorToken = operatorToken.ToString();
+                    }
+                    
                     _authContext.SaveChanges();
                     scope.Complete();
 
