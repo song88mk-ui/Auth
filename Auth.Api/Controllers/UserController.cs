@@ -447,5 +447,30 @@ namespace Auth.Api.Controllers
             }
         }
 
+        [HttpGet("client/token/list")]
+        public async Task<IActionResult> GetClientToken()
+        {
+            try
+            {
+                var appIdHeaderRequest = HttpContext.Request.Headers["x-app-id"].FirstOrDefault();
+
+                var result = await _userIdentityService.GetClientTokens(appIdHeaderRequest);
+
+                switch (result.StatusCode)
+                {
+                    case AuthStatusCode.Success:
+                        return Ok(result);
+                    case AuthStatusCode.Unauthorized:
+                        return Unauthorized(result);
+                    default:
+                        return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"client/token error: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
     }
 }

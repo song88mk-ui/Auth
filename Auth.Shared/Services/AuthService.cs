@@ -1091,6 +1091,53 @@ namespace Auth.Api.Services
             }
         }
 
+        public async Task<BaseResponse<List<ClientTokenModel>>> GetClientTokens(string appId)
+        {
+            try
+            {
+                if (appId != $"{(int)Application.ClientChecklist}")
+                    return new BaseResponse<List<ClientTokenModel>>
+                    {
+                        StatusCode = StatusCode.Unauthorized,
+                        Message = $"{StatusCode.Unauthorized}"
+                    };
+
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                {
+                    var sessionExpirationDate = DateTime.MaxValue;
+                    var operatorToken = Guid.NewGuid();
+
+                    var clientTokens = _authContext.UserTokens.Where(u => u.LoginProvider == appId);
+
+                    if (clientTokens.Any())
+                    {
+
+                        return new BaseResponse<List<ClientTokenModel>>
+                        {
+                            StatusCode = StatusCode.Success,
+                            Message = $"{StatusCode.Success}",
+                            Result = clientTokens.Select(s => new ClientTokenModel { UserId = s.UserId, OperatorToken = s.OperatorToken}).ToList()
+                        };
+                    }
+
+                    return new BaseResponse<List<ClientTokenModel>>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = $"{StatusCode.Success}",
+                        Result = new List<ClientTokenModel>()
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new BaseResponse<List<ClientTokenModel>>
+                {
+                    StatusCode = StatusCode.Error,
+                    Message = $"{StatusCode.Error.ToString().Replace('_', ' ')} ({ex.Message})"
+                };
+            }
+        }
+
         public void Dispose()
         {
             _roleManager.Dispose();
