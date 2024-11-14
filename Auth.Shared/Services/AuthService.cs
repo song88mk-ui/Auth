@@ -1104,14 +1104,10 @@ namespace Auth.Api.Services
 
                 using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                 {
-                    var sessionExpirationDate = DateTime.MaxValue;
-                    var operatorToken = Guid.NewGuid();
-
-                    var clientTokens = _authContext.UserTokens.Where(u => u.LoginProvider == appId);
+                    var clientTokens = _authContext.UserTokens.Where(u => u.LoginProvider == appId && string.IsNullOrEmpty(u.Value));
 
                     if (clientTokens.Any())
                     {
-
                         return new BaseResponse<List<ClientTokenModel>>
                         {
                             StatusCode = StatusCode.Success,
