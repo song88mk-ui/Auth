@@ -494,7 +494,15 @@ namespace Auth.Api.Repositories
                         }
 
                         activity?.SetTag("db.user.token", userToken.Value);
-                        if (string.IsNullOrEmpty(operatorToken) && userToken.Value != token)
+
+
+                        var jwtTokenFromDb = handler.ReadJwtToken(userToken.Value);
+                        var jwtTokenFromUser = handler.ReadJwtToken(token);
+
+                        bool areTokensEqual = jwtTokenFromDb.Claims.SequenceEqual(jwtTokenFromUser.Claims);
+
+                        if(!areTokensEqual)
+                        //if (string.IsNullOrEmpty(operatorToken) && userToken.Value.Split(".")[1] != token.Split(".")[1])
                         {
                             activity?.SetTag("auth.error", "userToken.Value!=token");
                             activity?.SetStatus(ActivityStatusCode.Error);
