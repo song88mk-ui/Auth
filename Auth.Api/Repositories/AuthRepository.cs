@@ -469,6 +469,7 @@ namespace Auth.Api.Repositories
 
                     var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                     var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
+                    var userName = parsedToken.Where(x => x.Type == "UserName").Select(x => x.Value).FirstOrDefault();
                     var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
                     var operatorToken = parsedToken.Where(x => x.Type == "UserToken").Select(x => x.Value).FirstOrDefault();
 
@@ -478,7 +479,7 @@ namespace Auth.Api.Repositories
 
                     using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                     {
-                        var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider);
+                        var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider && x.Name == userName);
                         activity?.AddEvent(new ActivityEvent("fetched.db.token"));
 
                         if (userToken == null)
@@ -541,12 +542,12 @@ namespace Auth.Api.Repositories
 
                         if (userToken.SessionExpirationDate < DateTime.UtcNow)
                         {
-                            var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
+                            //var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
 
-                            currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                            userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
                             activity?.AddEvent(new ActivityEvent("user.tokens.update"));
 
-                            _authContext.UserTokens.Update(currentUserToken);
+                            _authContext.UserTokens.Update(userToken);
                             _authContext.SaveChanges();
                         }
 

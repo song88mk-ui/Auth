@@ -83,7 +83,6 @@ namespace Auth.Api.Controllers
                 activity?.SetTag("authorization", HttpContext.Request.Headers["Authorization"]);
                 try
                 {
-                    //
                     var result = new BaseResponse<TokenModel>()
                     {
                         StatusCode = AuthStatusCode.Unauthorized,
