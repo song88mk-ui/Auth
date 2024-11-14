@@ -469,7 +469,7 @@ namespace Auth.Api.Repositories
 
                     var parsedToken = JwtParser.ParseClaimsFromJwt(token).ToList();
                     var provider = parsedToken.Where(x => x.Type == "Provider").Select(x => x.Value).FirstOrDefault();
-                    var userName = parsedToken.Where(x => x.Type == "UserName").Select(x => x.Value).FirstOrDefault();
+                    var tokenName = parsedToken.Where(x => x.Type == "TokenName").Select(x => x.Value).FirstOrDefault();
                     var userId = parsedToken.Where(x => x.Type == "UserId").Select(x => x.Value).FirstOrDefault();
                     var operatorToken = parsedToken.Where(x => x.Type == "UserToken").Select(x => x.Value).FirstOrDefault();
 
@@ -479,7 +479,7 @@ namespace Auth.Api.Repositories
 
                     using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
                     {
-                        var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider && x.Name == userName);
+                        var userToken = _authContext.UserTokens.AsNoTracking().FirstOrDefault(x => x.UserId == userId && x.LoginProvider == provider && x.Name == tokenName);
                         activity?.AddEvent(new ActivityEvent("fetched.db.token"));
 
                         if (userToken == null)
