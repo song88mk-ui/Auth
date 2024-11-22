@@ -30,6 +30,7 @@ namespace Auth.Api.Repositories
         private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
         private int _sessionExpirationInSeconds = 300;
+        private int _sessionExpirationInMonths = 3;
         private readonly ActivitySource _activitySource;
         private readonly Counter<long> _loginSuccessCounter;
         private readonly Counter<long> _loginFailureCounter;
@@ -176,7 +177,7 @@ namespace Auth.Api.Repositories
             using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
             {
                 var oldToken = _authContext.UserTokens.Where(x => x.UserId == user.Id).FirstOrDefault();
-                var sessionExpirationDate = loginModel?.Provider == $"{(int)Application.ClientChecklist}" ? DateTime.MaxValue : DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                var sessionExpirationDate = loginModel?.Provider == $"{(int)Application.ClientChecklist}" ? DateTime.MaxValue : DateTime.UtcNow.AddMonths(_sessionExpirationInMonths);
 
                 if (oldToken != null)
                 {
@@ -535,13 +536,21 @@ namespace Auth.Api.Repositories
 
                         if (userToken.SessionExpirationDate < DateTime.UtcNow)
                         {
+                            activity?.SetTag("auth.error", "Session Expired");
+                            activity?.SetStatus(ActivityStatusCode.Error);
+                            return new BaseResponse<TokenModel>
+                            {
+                                StatusCode = StatusCode.Unauthorized,
+                                Message = "Session Expired.",
+                                Result = null
+                            };
                             //var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
 
-                            userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-                            activity?.AddEvent(new ActivityEvent("user.tokens.update"));
+                            //userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                            //activity?.AddEvent(new ActivityEvent("user.tokens.update"));
 
-                            _authContext.UserTokens.Update(userToken);
-                            _authContext.SaveChanges();
+                            //_authContext.UserTokens.Update(userToken);
+                            //_authContext.SaveChanges();
                         }
 
                         scope.Complete();
@@ -638,7 +647,7 @@ namespace Auth.Api.Repositories
                     {
                         var currentUserToken = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
 
-                        currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
+                        currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddMonths(_sessionExpirationInMonths);
 
                         _authContext.UserTokens.Update(currentUserToken);
                         _authContext.SaveChanges();
