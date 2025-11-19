@@ -16,11 +16,12 @@ RUN dotnet publish -c Release \
 
 RUN cd /app/publish && rm -f appsettings.*.json
 
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine
-RUN apk add --no-cache icu-libs
-EXPOSE 80
-
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
 WORKDIR /app
+RUN apt-get update -qq && \
+    apt-get install curl -y && \
+    apt-get clean && \
+    rm -fr /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "Auth.Api.dll"]
