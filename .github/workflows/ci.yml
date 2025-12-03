@@ -25,7 +25,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.ECR }}/auth-api
+            ${{ env.ECR }}/platform-auth-api
           tags: |
             type=sha,event=pr,prefix=pr-sha-
             type=sha,event=branch,prefix={{branch}}-sha-,enable={{is_default_branch}}
