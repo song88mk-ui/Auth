@@ -227,8 +227,7 @@ namespace Auth.Api.Repositories
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content, int version)
         {
-            using var activity = _activitySource.StartActivity("login");
-
+            using( var activity = _activitySource.StartActivity("login"))
             try
             {
                 if (content != null)
@@ -346,16 +345,11 @@ namespace Auth.Api.Repositories
                     Result = null
                 };
             }
-            finally
-            {
-                activity?.Stop();
-            }
         }
 
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
-            using var activity = _activitySource.StartActivity("logout");
-            try
+            using(var activity = _activitySource.StartActivity("logout"))
             {
 
                 if (string.IsNullOrWhiteSpace(token))
@@ -416,11 +410,8 @@ namespace Auth.Api.Repositories
                     Result = true
                 };
             }
-            finally
-            {
-                activity?.Stop();
-            }
         }
+
         public BaseResponse<TokenModel> Authenticate(string token)
         {
             using(var activity = _activitySource.StartActivity("authenticate"))
@@ -578,104 +569,25 @@ namespace Auth.Api.Repositories
                         Result = null
                     };
                 }
-                finally
-                {
-                    activity?.Stop();
-                }
-
             }
         }
 
         public OperatorBaseResponse<object> AuthenticateOperator(string token,string? appId, bool isAgent = false)
         {
-            using var activity = _activitySource.StartActivity("authenticate-operator");
-
-            var cache = _memCache.GetCache<AppToken>($"ot:{token}");
-            var userType = isAgent ? "UserIdRef" : "UserId";
-
-            if (cache != null)
+            using(var activity = _activitySource.StartActivity("authenticate-operator"))
             {
-                var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
-                var userId = parsedToken.FirstOrDefault(x => x.Type == userType).Value;
-                var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value ?? string.Empty;
-                var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value ?? string.Empty;
-                var roleName = parsedToken.FirstOrDefault(x => x.Type == "RoleName")?.Value ?? string.Empty;
+                var cache = _memCache.GetCache<AppToken>($"ot:{token}");
+                var userType = isAgent ? "UserIdRef" : "UserId";
 
-                activity?.Stop();
-
-                return new OperatorBaseResponse<object>
+                if (cache != null)
                 {
-                    StatusCode = (int)StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new
-                    {
-                        UserId = userId.ToString(),
-                        UserName = tokenName,
-                        NickName = nickName ?? tokenName,
-                        RoleName = roleName ?? string.Empty,
-                    }
-                };
-            }
+                    var parsedToken = JwtParser.ParseClaimsFromJwt(cache.Value).ToList();
+                    var userId = parsedToken.FirstOrDefault(x => x.Type == userType).Value;
+                    var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value ?? string.Empty;
+                    var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value ?? string.Empty;
+                    var roleName = parsedToken.FirstOrDefault(x => x.Type == "RoleName")?.Value ?? string.Empty;
 
-            try
-            {
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
-                {
-                    var userToken = _authContext.UserTokens.AsNoTracking().Where(x => x.OperatorToken == token).FirstOrDefault();
-
-                    if (userToken == null)
-                    {
-                        return new OperatorBaseResponse<object>
-                        {
-                            StatusCode = (int)StatusCode.Unauthorized,
-                            Message = StatusCode.Unauthorized.ToString(),
-                            Result = null
-                        };
-                    }
-
-                    if(appId != null && userToken.LoginProvider != appId)
-                    {
-                        return new OperatorBaseResponse<object>
-                        {
-                            StatusCode = (int)StatusCode.Unauthorized,
-                            Message = StatusCode.Unauthorized.ToString(),
-                            Result = null
-                        };
-                    }
-
-                    if (userToken.SessionExpirationDate < DateTime.UtcNow)
-                    {
-                        var currentUserToken = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
-
-                        currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddMonths(_sessionExpirationInMonths);
-
-                        _authContext.UserTokens.Update(currentUserToken);
-                        _authContext.SaveChanges();
-                    }
-
-                    scope.Complete();
-                    activity?.SetStatus(ActivityStatusCode.Ok);
-
-                    if (string.IsNullOrEmpty(userToken.Value) && userToken.LoginProvider == $"{(int)Application.ClientChecklist}")
-                    {
-                        return new OperatorBaseResponse<object>
-                        {
-                            StatusCode = (int)StatusCode.Success,
-                            Message = StatusCode.Success.ToString(),
-                            Result = new
-                            {
-                                UserId = userToken.UserId,
-                                UserName = userToken.Name,
-                                NickName = userToken.Name
-                            }
-                        };
-                    }
-
-                    var parsedToken = JwtParser.ParseClaimsFromJwt(userToken.Value).ToList();
-                    var userId = parsedToken.FirstOrDefault(x => x.Type == userType)?.Value;
-                    var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value;
-                    var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value;
-                    var roleName = parsedToken.FirstOrDefault(x => x.Type == "RoleName")?.Value;
+                    activity?.Stop();
 
                     return new OperatorBaseResponse<object>
                     {
@@ -683,30 +595,102 @@ namespace Auth.Api.Repositories
                         Message = StatusCode.Success.ToString(),
                         Result = new
                         {
-                            UserId = userId,
+                            UserId = userId.ToString(),
                             UserName = tokenName,
                             NickName = nickName ?? tokenName,
-                            RoleName = roleName ?? string.Empty
+                            RoleName = roleName ?? string.Empty,
                         }
                     };
-                };
-            }
-            catch (Exception ex)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                }
 
-                return new OperatorBaseResponse<object>
+                try
                 {
-                    StatusCode = (int)StatusCode.Error,
-                    Message = ex.Message,
-                    Result = null
-                };
-            }
-            finally
-            {
-                activity?.Stop();
+                    using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                    {
+                        var userToken = _authContext.UserTokens.AsNoTracking().Where(x => x.OperatorToken == token).FirstOrDefault();
+
+                        if (userToken == null)
+                        {
+                            return new OperatorBaseResponse<object>
+                            {
+                                StatusCode = (int)StatusCode.Unauthorized,
+                                Message = StatusCode.Unauthorized.ToString(),
+                                Result = null
+                            };
+                        }
+
+                        if(appId != null && userToken.LoginProvider != appId)
+                        {
+                            return new OperatorBaseResponse<object>
+                            {
+                                StatusCode = (int)StatusCode.Unauthorized,
+                                Message = StatusCode.Unauthorized.ToString(),
+                                Result = null
+                            };
+                        }
+
+                        if (userToken.SessionExpirationDate < DateTime.UtcNow)
+                        {
+                            var currentUserToken = _authContext.UserTokens.Where(x => x.OperatorToken == token).FirstOrDefault();
+
+                            currentUserToken.SessionExpirationDate = DateTime.UtcNow.AddMonths(_sessionExpirationInMonths);
+
+                            _authContext.UserTokens.Update(currentUserToken);
+                            _authContext.SaveChanges();
+                        }
+
+                        scope.Complete();
+                        activity?.SetStatus(ActivityStatusCode.Ok);
+
+                        if (string.IsNullOrEmpty(userToken.Value) && userToken.LoginProvider == $"{(int)Application.ClientChecklist}")
+                        {
+                            return new OperatorBaseResponse<object>
+                            {
+                                StatusCode = (int)StatusCode.Success,
+                                Message = StatusCode.Success.ToString(),
+                                Result = new
+                                {
+                                    UserId = userToken.UserId,
+                                    UserName = userToken.Name,
+                                    NickName = userToken.Name
+                                }
+                            };
+                        }
+
+                        var parsedToken = JwtParser.ParseClaimsFromJwt(userToken.Value).ToList();
+                        var userId = parsedToken.FirstOrDefault(x => x.Type == userType)?.Value;
+                        var tokenName = parsedToken.FirstOrDefault(x => x.Type == "TokenName")?.Value;
+                        var nickName = parsedToken.FirstOrDefault(x => x.Type == "NickName")?.Value;
+                        var roleName = parsedToken.FirstOrDefault(x => x.Type == "RoleName")?.Value;
+
+                        return new OperatorBaseResponse<object>
+                        {
+                            StatusCode = (int)StatusCode.Success,
+                            Message = StatusCode.Success.ToString(),
+                            Result = new
+                            {
+                                UserId = userId,
+                                UserName = tokenName,
+                                NickName = nickName ?? tokenName,
+                                RoleName = roleName ?? string.Empty
+                            }
+                        };
+                    };
+                }
+                catch (Exception ex)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+
+                    return new OperatorBaseResponse<object>
+                    {
+                        StatusCode = (int)StatusCode.Error,
+                        Message = ex.Message,
+                        Result = null
+                    };
+                }
             }
         }
+
         public async Task<BaseResponse<TokenModel>> AuthenticateSecurityCode(AuthenticateSecurityCodeRequest request)
         {
             try

@@ -54,9 +54,9 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
           // observe /v1(/.*) only
           return httpContext.Request.Path.ToString().StartsWith("/v1");
         })
-        .AddSqlClientInstrumentation();
+        .AddSqlClientInstrumentation()
+        .AddOtlpExporter();
 
-      tracing.AddOtlpExporter();
     })
     .WithMetrics(metrics =>
     {
@@ -67,7 +67,6 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
         .AddAspNetCoreInstrumentation()
         .AddPrometheusHttpListener(opts => opts.UriPrefixes = new string[] { $"http://+:{metricsPort}" }); 
     });
-
 
 }
 
