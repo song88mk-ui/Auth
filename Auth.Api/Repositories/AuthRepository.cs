@@ -62,9 +62,9 @@ namespace Auth.Api.Repositories
             TokenKey = Encoding.UTF8.GetBytes(_configuration["JWT:Key"]);
             Issuer = _configuration["JWT:Issuer"] ?? string.Empty;
             _memCache = memCache;
-            this._activitySource = instrumentation.ActivitySource;
-            this._loginSuccessCounter = instrumentation.LoginSuccessCounter;
-            this._loginFailureCounter = instrumentation.LoginFailureCounter;
+            _activitySource = instrumentation.ActivitySource;
+            _loginSuccessCounter = instrumentation.LoginSuccessCounter;
+            _loginFailureCounter = instrumentation.LoginFailureCounter;
         }
 
         #endregion
@@ -227,7 +227,7 @@ namespace Auth.Api.Repositories
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content, int version)
         {
-            using var activity = this._activitySource.StartActivity("login");
+            using var activity = _activitySource.StartActivity("login");
 
             try
             {
@@ -257,7 +257,7 @@ namespace Auth.Api.Repositories
 
                 if (user == null)
                 {
-                    this._loginFailureCounter.Add(1);
+                    _loginFailureCounter.Add(1);
                     return new BaseResponse<TokenModel>
                     {
                         StatusCode = StatusCode.Username_Not_Found,
@@ -268,7 +268,7 @@ namespace Auth.Api.Repositories
 
                 if (user.AppId.ToString() != content.Provider)
                 {
-                    this._loginFailureCounter.Add(1);
+                    _loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -280,7 +280,7 @@ namespace Auth.Api.Repositories
 
                 if (user.LockoutEnd != null)
                 {
-                    this._loginFailureCounter.Add(1);
+                    _loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -301,7 +301,7 @@ namespace Auth.Api.Repositories
 
                 if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
                 {
-                    this._loginFailureCounter.Add(1);
+                    _loginFailureCounter.Add(1);
 
                     return new BaseResponse<TokenModel>
                     {
@@ -321,7 +321,7 @@ namespace Auth.Api.Repositories
                 SaveToken(user, accessToken, operatorToken, content);
 
                 activity?.SetStatus(ActivityStatusCode.Ok);
-                this._loginSuccessCounter.Add(1);
+                _loginSuccessCounter.Add(1);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -337,7 +337,7 @@ namespace Auth.Api.Repositories
             catch (Exception ex)
             {
                 activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                this._loginFailureCounter.Add(1);
+                _loginFailureCounter.Add(1);
 
                 return new BaseResponse<TokenModel>
                 {
@@ -354,7 +354,7 @@ namespace Auth.Api.Repositories
 
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
-            using var activity = this._activitySource.StartActivity("logout");
+            using var activity = _activitySource.StartActivity("logout");
             try
             {
 
@@ -423,7 +423,7 @@ namespace Auth.Api.Repositories
         }
         public BaseResponse<TokenModel> Authenticate(string token)
         {
-            using(var activity = this._activitySource.StartActivity("authenticate"))
+            using(var activity = _activitySource.StartActivity("authenticate"))
             {
                 activity?.SetTag("token", token);
 
@@ -588,7 +588,7 @@ namespace Auth.Api.Repositories
 
         public OperatorBaseResponse<object> AuthenticateOperator(string token,string? appId, bool isAgent = false)
         {
-            using var activity = this._activitySource.StartActivity("authenticate-operator");
+            using var activity = _activitySource.StartActivity("authenticate-operator");
 
             var cache = _memCache.GetCache<AppToken>($"ot:{token}");
             var userType = isAgent ? "UserIdRef" : "UserId";

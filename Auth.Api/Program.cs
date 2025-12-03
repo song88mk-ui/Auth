@@ -1,5 +1,3 @@
-using Azure.Identity;
-using Microsoft.AspNetCore.DataProtection;
 using Auth.Api.ActionFilters;
 using Auth.Api.Identity;
 using Auth.Api.Repositories;
@@ -32,21 +30,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Telemetry
 Action<ResourceBuilder> configureResource = r => r.AddService(
-    serviceName: "Authentication.API",
+    serviceName: Instrumentation.ActivitySourceName,
     serviceNamespace: builder.Configuration["Telemetry:Environment"],
     serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
     serviceInstanceId: Environment.MachineName);
-
-// use console logging for ACA as single line
-// so it can be viewed on Logs as one line rather
-// than multiple lines
-builder.Logging.ClearProviders();
-builder.Logging.AddSimpleConsole(opts => { opts.SingleLine = true; });
 
 builder.Services.AddSingleton<Instrumentation>();
 
 if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
 {
+  var metricsPort = builder.Configuration.GetValue<int>("Telemetry:MetricsPort", 8080);
+
   builder.Services.AddOpenTelemetry()
     .ConfigureResource(configureResource)
     .WithTracing(tracing =>
@@ -54,17 +48,7 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
       tracing
         .AddSource(Instrumentation.ActivitySourceName)
         .SetSampler(new AlwaysOnSampler())
-        .AddHttpClientInstrumentation(
-            (options) => options.FilterHttpRequestMessage =
-              (httpRequestMessage) =>
-              {
-                // skip calls made to azure app insights
-                var uriString = httpRequestMessage.RequestUri.ToString();
-                var isAzureReq = uriString.Contains("monitor.azure.com") ||
-                                 uriString.Contains("visualstudio.com");
-                return !isAzureReq;
-              }
-        )
+        .AddHttpClientInstrumentation()
         .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
         {
           // observe /v1(/.*) only
@@ -72,32 +56,18 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
         })
         .AddSqlClientInstrumentation();
 
-      builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(builder.Configuration.GetSection("Telemetry:AspNetCoreInstrumentation"));
-
-
-      tracing.AddOtlpExporter(otlpOptions =>
-      {
-        otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
-        otlpOptions.Endpoint = new Uri(builder.Configuration["Telemetry:Collector"]+"/v1/traces");
-      });
-
-
+      tracing.AddOtlpExporter();
     })
     .WithMetrics(metrics =>
     {
       metrics
         .AddMeter(Instrumentation.MeterName)
         .AddRuntimeInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddAspNetCoreInstrumentation();
-
-      metrics.AddOtlpExporter(otlpOptions =>
-      {
-        otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
-        otlpOptions.Endpoint = new Uri(builder.Configuration["Telemetry:Collector"]+"/v1/metrics");
-      });
-
+        .AddProcessInstrumentation()
+        .AddAspNetCoreInstrumentation()
+        .AddPrometheusHttpListener(opts => opts.UriPrefixes = new string[] { $"http://+:{metricsPort}" }); 
     });
+
 
 }
 
@@ -124,16 +94,6 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredUniqueChars = 0;
 });
 builder.Services.AddHealthChecks();
-builder.Services.AddApplicationInsightsTelemetry();
-
-// configure dpk when runnin on aca
-if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CONTAINER_APP_ENV_DNS_SUFFIX")))
-{
-  var envName = Environment.GetEnvironmentVariable("AUTH_ENV_NAME");
-  var dpkUri = $"https://song88dpk.blob.core.windows.net/{envName}/auth-api/dpk";
-  builder.Services.AddDataProtection()
-    .PersistKeysToAzureBlobStorage(new Uri(dpkUri), new DefaultAzureCredential());
-}
 
 builder.Services.AddCors(options =>
 {

@@ -7,7 +7,7 @@ namespace Auth.Api.Telemetry
   public class Instrumentation: IDisposable
   {
 
-    internal const string ActivitySourceName = "Authentication.API";
+    internal const string ActivitySourceName = "Auth.API";
     internal const string MeterName = "Auth.API";
 
     private readonly Meter meter;
