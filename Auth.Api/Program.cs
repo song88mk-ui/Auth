@@ -65,7 +65,7 @@ if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
         .AddRuntimeInstrumentation()
         .AddProcessInstrumentation()
         .AddAspNetCoreInstrumentation()
-        .AddPrometheusHttpListener(opts => opts.UriPrefixes = new string[] { $"http://+:{metricsPort}" }); 
+        .AddPrometheusHttpListener(opts => opts.UriPrefixes = new string[] { $"http://+:{metricsPort}" });
     });
 
 }
