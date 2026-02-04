@@ -9,4 +9,3 @@ Requires database, see [appsettings.json](Auth.Api/appsettings.json)
 ### Security
 
 Review the JWT (Json Web Token) security options during deployment.
-
