@@ -15,7 +15,7 @@ namespace Auth.Api.Controllers
     [Route("v1/api/[controller]")]
     [ApiController, EnableCors("AllowAllOrigins"), ServiceFilter(typeof(ApiKeyFilter))]
     public class UserController : ControllerBase
-    {
+    {//
         private IAuthService _userIdentityService { get; set; }
         private readonly IAuthRepository _authRepository;
         private readonly ILogger<UserController> _logger;

@@ -767,7 +767,8 @@ namespace Auth.Api.Services
                     var role = new AppRole(request.UserGroupName);
 
                     role.UserGroupIdRef = ConvertToEpochTimestamp(DateTime.UtcNow);
-
+                    role.ConcurrencyStamp = Guid.NewGuid().ToString();
+                    role.NormalizedName = role.Name.ToUpper().Trim();
                     result = await _roleManager.CreateAsync(role);
                     appRole = await _roleManager.FindByNameAsync(request.UserGroupName);
 
