@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -36,39 +37,10 @@ Action<ResourceBuilder> configureResource = r => r.AddService(
     serviceInstanceId: Environment.MachineName);
 
 builder.Services.AddSingleton<Instrumentation>();
-
-if (Convert.ToBoolean(builder.Configuration["Telemetry:Enabled"]))
-{
-  var metricsPort = builder.Configuration.GetValue<int>("Telemetry:MetricsPort", 8080);
-
-  builder.Services.AddOpenTelemetry()
-    .ConfigureResource(configureResource)
-    .WithTracing(tracing =>
-    {
-      tracing
-        .AddSource(Instrumentation.ActivitySourceName)
-        .SetSampler(new AlwaysOnSampler())
-        .AddHttpClientInstrumentation()
-        .AddAspNetCoreInstrumentation((opts) => opts.Filter = httpContext =>
-        {
-          // observe /v1(/.*) only
-          return httpContext.Request.Path.ToString().StartsWith("/v1");
-        })
-        .AddSqlClientInstrumentation()
-        .AddOtlpExporter();
-
-    })
-    .WithMetrics(metrics =>
-    {
-      metrics
-        .AddMeter(Instrumentation.MeterName)
-        .AddRuntimeInstrumentation()
-        .AddProcessInstrumentation()
-        .AddAspNetCoreInstrumentation()
-        .AddPrometheusHttpListener(opts => opts.UriPrefixes = new string[] { $"http://+:{metricsPort}" });
-    });
-
-}
+builder.Services.AddTelemetry(new TelemetrySettings(
+    ServiceName: Instrumentation.ActivitySourceName,
+    ActivitySourceName: Instrumentation.ActivitySourceName,
+    MeterName: Instrumentation.MeterName));
 
 // Add services to the container.
 builder.Services.AddDbContextPool<AuthContext>(o => o.UseSqlServer(builder.Configuration["Context:Auth"]));

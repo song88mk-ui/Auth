@@ -7,6 +7,14 @@ COPY Auth.Shared Auth.Shared
 
 WORKDIR /src/Auth.Api
 
+ARG NUGET_PASSWORD
+
+RUN dotnet nuget add source \
+  --username FlyingCockatoo \
+  --password ${NUGET_PASSWORD} \
+  --store-password-in-clear-text \
+  --name github "https://nuget.pkg.github.com/FlyingCockatoo/index.json"
+
 RUN dotnet restore
 RUN dotnet build -c Release \
   --no-restore -o /app/build
