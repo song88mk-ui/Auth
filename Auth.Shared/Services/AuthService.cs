@@ -792,35 +792,48 @@ namespace Auth.Api.Services
                     };
                 }
 
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new System.Transactions.TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
+                using (var scope = new TransactionScope(
+                    TransactionScopeOption.Required,
+                    new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted },
+                    TransactionScopeAsyncFlowOption.Enabled))
                 {
+                    var existingClaims = await _authContext.RoleClaims
+                        .Where(x => x.RoleId == request.UserGroupId)
+                        .ToListAsync();
+
                     foreach (var claim in request.Claims)
                     {
-                        var newClaims = _authContext.RoleClaims.FirstOrDefault(x => x.RoleId == request.UserGroupId && x.ClaimType == claim.ClaimType);
-                        if (newClaims == null)
-                        {
-                            Claim newClaims2 = new Claim(claim.ClaimType, claim.ClaimValue);
-                            await _roleManager.AddClaimAsync(appRole, newClaims2);
+                        var existing = existingClaims
+                            .FirstOrDefault(x => x.ClaimType == claim.ClaimType);
 
-                            await _authContext.SaveChangesAsync();
+                        if (existing == null)
+                        {
+                            await _authContext.RoleClaims.AddAsync(new IdentityRoleClaim<string>
+                            {
+                                RoleId = request.UserGroupId,
+                                ClaimType = claim.ClaimType,
+                                ClaimValue = claim.ClaimValue
+                            });
                         }
                         else
                         {
-                            newClaims.ClaimValue = claim.ClaimValue;
-                            _authContext.RoleClaims.Update(newClaims);
-
-                            await _authContext.SaveChangesAsync();
-
-                            _authContext.Entry(newClaims).State = EntityState.Detached;
+                            if (existing.ClaimValue != claim.ClaimValue)
+                            {
+                                existing.ClaimValue = claim.ClaimValue;
+                                _authContext.RoleClaims.Update(existing);
+                            }
                         }
 
-                        if(claim.ClaimValue == "0" || claim.ClaimValue == "2")
+                        if (claim.ClaimValue == "0" || claim.ClaimValue == "2")
                         {
-                            var subUsers = _authContext.UserClaims.Where(x => x.ClaimType == claim.ClaimType && x.ClaimValue == "1").ToList();
-                            if (subUsers != null && subUsers.Any())
+                            var subUsers = await _authContext.UserClaims
+                                .Where(x => x.ClaimType == claim.ClaimType && x.ClaimValue == "1")
+                                .ToListAsync();
+
+                            if (subUsers.Any())
                             {
                                 subUsers.ForEach(x => x.ClaimValue = claim.ClaimValue);
-                                _authContext.UpdateRange(subUsers);
+                                _authContext.UserClaims.UpdateRange(subUsers);
                             }
                         }
                     }

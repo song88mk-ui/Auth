@@ -6,6 +6,7 @@ using Auth.Shared.Enums;
 using Auth.Shared.Models;
 using Auth.Shared.Models.Response;
 using Auth.Shared.Utilities;
+using Azure.Core;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -124,10 +125,10 @@ namespace Auth.Api.Repositories
                                           where roleClaims.ClaimValue != "0" && roles.UserId == mainUserId && permissionVersions.Contains(permissions.Version)
                                           select new ClaimModel() { ClaimType = permissions.ClaimType.ToString(), ClaimValue = roleClaims.ClaimValue }).ToList();
 
-                   var tempClaims = (from userClaims in _authContext.UserClaims
-                              join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true && permissionVersions.Contains(permissions.Version)
-                              select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
+                    var tempClaims = (from userClaims in _authContext.UserClaims
+                                      join permissions in _authContext.Permission on userClaims.ClaimType equals permissions.PermissionId.ToString()
+                                      where userClaims.UserId == userId && userClaims.ClaimValue != "0" && permissions.IsSubUser == true && permissionVersions.Contains(permissions.Version)
+                                      select new Claim(permissions.ClaimType, userClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                     claims = tempClaims.Where(x => mainUserClaims.Any(c => c.ClaimType == x.Type && c.ClaimValue == x.Value)).Select(x => new Claim(x.Type, x.Value, x.ValueType)).ToList();
 
@@ -227,129 +228,133 @@ namespace Auth.Api.Repositories
 
         public async Task<BaseResponse<TokenModel>> Login(LoginModel content, int version)
         {
-            using( var activity = _activitySource.StartActivity("login"))
-            try
-            {
-                if (content != null)
+            using (var activity = _activitySource.StartActivity("login"))
+                try
                 {
-                    if (!string.IsNullOrEmpty(content.IpAddress))
+                    if (content != null)
                     {
-                        if (content.IpAddress == "::1")
+                        if (!string.IsNullOrEmpty(content.IpAddress))
                         {
-                            content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
+                            if (content.IpAddress == "::1")
+                            {
+                                content.IpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].ToString();
+                            }
+                            if (string.IsNullOrEmpty(content.Country))
+                                content.Country = GetUserCountryByIp(content.IpAddress);
                         }
-                        if (string.IsNullOrEmpty(content.Country))
-                            content.Country = GetUserCountryByIp(content.IpAddress);
+
+                        content.Country = content.Country ?? "";
                     }
 
-                    content.Country = content.Country ?? "";
-                }
+                    activity?.SetTag("user.name", content.Username);
+                    activity?.SetTag("ip.address", content.IpAddress);
+                    activity?.SetTag("country.code", content.Country);
 
-                activity?.SetTag("user.name", content.Username);
-                activity?.SetTag("ip.address", content.IpAddress);
-                activity?.SetTag("country.code", content.Country);
+                    // if main user get from role claims
+                    // if sub user get from user claims
+                    var user = await _userManager.FindByNameAsync(content.Username);
+                    var mainUserIdRef = 0l;
 
-                // if main user get from role claims
-                // if sub user get from user claims
-                var user = await _userManager.FindByNameAsync(content.Username);
-                var mainUserIdRef = 0l;
-
-                if (user == null)
-                {
-                    _loginFailureCounter.Add(1);
-                    return new BaseResponse<TokenModel>
+                    if (user == null)
                     {
-                        StatusCode = StatusCode.Username_Not_Found,
-                        Message = "Sorry, we couldn’t find an account with that username. Please try again.",
-                        Result = null
-                    };
-                }
-
-                if (user.AppId.ToString() != content.Provider)
-                {
-                    _loginFailureCounter.Add(1);
-
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Unauthorized,
-                        Message = "User does not exist.",
-                        Result = null
-                    };
-                }
-
-                if (user.LockoutEnd != null)
-                {
-                    _loginFailureCounter.Add(1);
-
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.User_Is_Locked,
-                        Message = "User is locked.",
-                        Result = null
-                    };
-                }
-
-                var role = await _userIdentityService.GetCurrentUserRole(user);
-
-                if (!string.IsNullOrEmpty(user.MainUserId) && user.MainUserId != "0")
-                {
-                    var mainUser = await _userManager.FindByIdAsync(user.MainUserId);
-                    mainUserIdRef = mainUser.IdRef;
-                    role = await _userIdentityService.GetCurrentUserRole(mainUser);
-                }
-
-                if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
-                {
-                    _loginFailureCounter.Add(1);
-
-                    return new BaseResponse<TokenModel>
-                    {
-                        StatusCode = StatusCode.Invalid_Password,
-                        Message = "Invalid Password. Please try again.",
-                        Result = null
-                    };
-                }
-
-                var accessToken = string.Empty;
-
-                var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, version, user.IdRef, mainUserIdRef);
-                var tokenHandler = new JwtSecurityTokenHandler();
-                accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token));
-
-                var operatorToken = Guid.NewGuid().ToString();
-                SaveToken(user, accessToken, operatorToken, content);
-
-                activity?.SetStatus(ActivityStatusCode.Ok);
-                _loginSuccessCounter.Add(1);
-
-                return new BaseResponse<TokenModel>
-                {
-                    StatusCode = StatusCode.Success,
-                    Message = StatusCode.Success.ToString(),
-                    Result = new TokenModel()
-                    {
-                        OperatorToken = operatorToken,
-                        AccessToken = accessToken
+                        _loginFailureCounter.Add(1);
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Username_Not_Found,
+                            Message = "Sorry, we couldn’t find an account with that username. Please try again.",
+                            Result = null
+                        };
                     }
-                };
-            }
-            catch (Exception ex)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                _loginFailureCounter.Add(1);
 
-                return new BaseResponse<TokenModel>
+                    if (user.AppId.ToString() != content.Provider)
+                    {
+                        _loginFailureCounter.Add(1);
+
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Unauthorized,
+                            Message = "User does not exist.",
+                            Result = null
+                        };
+                    }
+
+                    if (user.LockoutEnd != null)
+                    {
+                        _loginFailureCounter.Add(1);
+
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.User_Is_Locked,
+                            Message = "User is locked.",
+                            Result = null
+                        };
+                    }
+
+                    var role = await _userIdentityService.GetCurrentUserRole(user);
+
+                    if (!string.IsNullOrEmpty(user.MainUserId) && user.MainUserId != "0")
+                    {
+                        var mainUser = await _userManager.FindByIdAsync(user.MainUserId);
+                        mainUserIdRef = mainUser.IdRef;
+                        role = await _userIdentityService.GetCurrentUserRole(mainUser);
+                    }
+
+                    if (_userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, content.Password) != PasswordVerificationResult.Success)
+                    {
+
+                        //var vtoken = await _userManager.GeneratePasswordResetTokenAsync(user);
+                        //var result = await _userManager.ResetPasswordAsync(user, vtoken, content.Password);
+
+                        _loginFailureCounter.Add(1);
+
+                        return new BaseResponse<TokenModel>
+                        {
+                            StatusCode = StatusCode.Invalid_Password,
+                            Message = "Invalid Password. Please try again.",
+                            Result = null
+                        };
+                    }
+
+                    var accessToken = string.Empty;
+
+                    var token = await GenerateToken(user.Id, role.Result, content.Provider, content.Username, user.MainUserId, user.NickName, version, user.IdRef, mainUserIdRef);
+                    var tokenHandler = new JwtSecurityTokenHandler();
+                    accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(token));
+
+                    var operatorToken = Guid.NewGuid().ToString();
+                    SaveToken(user, accessToken, operatorToken, content);
+
+                    activity?.SetStatus(ActivityStatusCode.Ok);
+                    _loginSuccessCounter.Add(1);
+
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Success,
+                        Message = StatusCode.Success.ToString(),
+                        Result = new TokenModel()
+                        {
+                            OperatorToken = operatorToken,
+                            AccessToken = accessToken
+                        }
+                    };
+                }
+                catch (Exception ex)
                 {
-                    StatusCode = StatusCode.Error,
-                    Message = ex.Message,
-                    Result = null
-                };
-            }
+                    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    _loginFailureCounter.Add(1);
+
+                    return new BaseResponse<TokenModel>
+                    {
+                        StatusCode = StatusCode.Error,
+                        Message = ex.Message,
+                        Result = null
+                    };
+                }
         }
 
         public async Task<BaseResponse<bool>> Logout(string token, bool isOperator = false)
         {
-            using(var activity = _activitySource.StartActivity("logout"))
+            using (var activity = _activitySource.StartActivity("logout"))
             {
 
                 if (string.IsNullOrWhiteSpace(token))
@@ -414,7 +419,7 @@ namespace Auth.Api.Repositories
 
         public BaseResponse<TokenModel> Authenticate(string token)
         {
-            using(var activity = _activitySource.StartActivity("authenticate"))
+            using (var activity = _activitySource.StartActivity("authenticate"))
             {
                 activity?.SetTag("token", token);
 
@@ -572,9 +577,9 @@ namespace Auth.Api.Repositories
             }
         }
 
-        public OperatorBaseResponse<object> AuthenticateOperator(string token,string? appId, bool isAgent = false)
+        public OperatorBaseResponse<object> AuthenticateOperator(string token, string? appId, bool isAgent = false)
         {
-            using(var activity = _activitySource.StartActivity("authenticate-operator"))
+            using (var activity = _activitySource.StartActivity("authenticate-operator"))
             {
                 var cache = _memCache.GetCache<AppToken>($"ot:{token}");
                 var userType = isAgent ? "UserIdRef" : "UserId";
@@ -619,7 +624,7 @@ namespace Auth.Api.Repositories
                             };
                         }
 
-                        if(appId != null && userToken.LoginProvider != appId)
+                        if (appId != null && userToken.LoginProvider != appId)
                         {
                             return new OperatorBaseResponse<object>
                             {
