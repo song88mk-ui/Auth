@@ -30,12 +30,6 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Telemetry
-Action<ResourceBuilder> configureResource = r => r.AddService(
-    serviceName: Instrumentation.ActivitySourceName,
-    serviceNamespace: builder.Configuration["Telemetry:Environment"],
-    serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "latest",
-    serviceInstanceId: Environment.MachineName);
-
 builder.Services.AddSingleton<Instrumentation>();
 builder.Services.AddTelemetry(new TelemetrySettings(
     ServiceName: Instrumentation.ActivitySourceName,
