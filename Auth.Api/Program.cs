@@ -26,8 +26,14 @@ using System.Diagnostics.Metrics;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, _, serilog) =>
+{
+    serilog.ReadFrom.Configuration(context.Configuration);
+});
 
 // Telemetry
 builder.Services.AddSingleton<Instrumentation>();
