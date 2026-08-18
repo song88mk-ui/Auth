@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using System.Text.Json;
 using Auth.Shared.Utilities;
 
 namespace Auth.Tests.Utilities
@@ -27,6 +29,31 @@ namespace Auth.Tests.Utilities
             var claims = JwtParser.ParseClaimsFromJwt(jwt).ToList();
 
             Assert.Contains(claims, c => c.Type == claimType && c.Value == expectedValue);
+        }
+
+        [Fact]
+        public void ParseClaimsFromJwt_NoSeparator_ThrowsIndexOutOfRangeException()
+        {
+            const string jwt = "notajwt";
+
+            Assert.Throws<IndexOutOfRangeException>(() => JwtParser.ParseClaimsFromJwt(jwt));
+        }
+
+        [Fact]
+        public void ParseClaimsFromJwt_PayloadNotValidBase64_ThrowsFormatException()
+        {
+            const string jwt = "header.not!valid!base64.signature";
+
+            Assert.Throws<FormatException>(() => JwtParser.ParseClaimsFromJwt(jwt));
+        }
+
+        [Fact]
+        public void ParseClaimsFromJwt_PayloadNotJsonObject_ThrowsJsonException()
+        {
+            // payload = base64("not json")
+            const string jwt = "header.bm90IGpzb24.signature";
+
+            Assert.Throws<JsonException>(() => JwtParser.ParseClaimsFromJwt(jwt));
         }
     }
 }
