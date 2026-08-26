@@ -1,6 +1,6 @@
 # Authentication API
 
-Contains the new code base for the Authentication API: an ASP.NET Core (.NET 8) REST
+Contains the new code base for the Authentication API: an ASP.NET Core (.NET 10) REST
 service that provides authentication and user management for the platform's web apps
 (the Swagger doc describes it as "Authorization API for web apps"). It is built on
 ASP.NET Core Identity backed by SQL Server (Entity Framework Core), issues JWT bearer
@@ -10,8 +10,9 @@ tokens, and protects all endpoints with an `x-api-key` request header.
 
 | Project | Target | Purpose |
 |---|---|---|
-| `Auth.Api` | net8.0 | Web API host: controllers, action filters, DI, Swagger, telemetry |
-| `Auth.Shared` | net6.0 | Class library: `AuthContext` (Identity DbContext), models, `AuthService`, `MemCache`, JWT helpers |
+| `Auth.Api` | net10.0 | Web API host: controllers, action filters, DI, Swagger, telemetry |
+| `Auth.Shared` | net10.0 | Class library: `AuthContext` (Identity DbContext), models, `AuthService`, `MemCache`, JWT helpers |
+| `Auth.Tests` | net10.0 | xUnit tests for `Auth.Shared` helpers; run in CI on pull requests |
 
 Key endpoints (see `Auth.Api/Controllers/`):
 
@@ -25,7 +26,7 @@ Key endpoints (see `Auth.Api/Controllers/`):
 
 ## Prerequisites
 
-- .NET 8 SDK (`Auth.Shared` also needs the .NET 6 targeting pack, installed with recent SDKs)
+- .NET 10 SDK (all three projects target `net10.0`)
 - SQL Server reachable from your machine (a local instance or a Docker container on port 1433)
 - Access to the private GitHub Packages NuGet feed
   `https://nuget.pkg.github.com/FlyingCockatoo/index.json` - the project references the
@@ -197,7 +198,7 @@ docker run -p 8080:8080 -e Context__Auth="<connection-string>" auth-api
 
 Notes:
 
-- The image is based on `mcr.microsoft.com/dotnet/aspnet:8.0`, which listens on port
+- The image is based on `mcr.microsoft.com/dotnet/aspnet:10.0`, which listens on port
   8080 by default; the Dockerfile does not declare an `EXPOSE` or port override.
 - The publish stage deletes `appsettings.<Environment>.json` files; only the base
   `appsettings.json` ships in the image, so environment-specific settings must come
@@ -205,11 +206,17 @@ Notes:
 
 ## Tests
 
-There is no test project in this repository (nothing in `Auth.sln` besides `Auth.Api`
-and `Auth.Shared`, and no `*Test*` projects on disk). CI (`.github/workflows/ci.yml`)
-only builds and pushes the Docker image to ECR (`platform-auth-api`); it runs no tests.
+`Auth.Tests` (xUnit) covers `Auth.Shared` helpers. Run it locally with:
 
-Until a test project exists, validation is manual:
+```
+dotnet test Auth.Tests/Auth.Tests.csproj --configuration Release
+```
+
+CI (`.github/workflows/ci.yml`) runs the same command in a `test` job, but **only on
+pull requests** - pushes to `main` and releases skip it and go straight to building and
+pushing the Docker image to ECR (`platform-auth-api`).
+
+Coverage is still thin, so complement it with manual checks:
 
 1. `dotnet build Auth.sln` succeeds with no new warnings.
 2. Run the app and exercise endpoints through Swagger UI (`/swagger`) with the
