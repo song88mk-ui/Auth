@@ -106,7 +106,8 @@ namespace Auth.Api.Repositories
 
             if (role != null && role.Name.ToLower() == "super admin")
             {
-                claims = (from permissions in _authContext.Permission where permissions.CategoryId != 99
+                claims = (from permissions in _authContext.Permission
+                          where permissions.CategoryId != 99
                           select new Claim(permissions.ClaimType, "1", $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                 clients = claims.Where(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.')).Select(x => new Claim(x.Type, "ALL")).FirstOrDefault();
@@ -122,7 +123,7 @@ namespace Auth.Api.Repositories
                     var mainUserClaims = (from roleClaims in _authContext.RoleClaims
                                           join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
                                           join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                                          where  permissions.CategoryId != 99 && roleClaims.ClaimValue != "0" && roles.UserId == mainUserId && permissionVersions.Contains(permissions.Version)
+                                          where permissions.CategoryId != 99 && roleClaims.ClaimValue != "0" && roles.UserId == mainUserId && permissionVersions.Contains(permissions.Version)
                                           select new ClaimModel() { ClaimType = permissions.ClaimType.ToString(), ClaimValue = roleClaims.ClaimValue }).ToList();
 
                     var tempClaims = (from userClaims in _authContext.UserClaims
@@ -143,7 +144,7 @@ namespace Auth.Api.Repositories
                     claims = (from roleClaims in _authContext.RoleClaims
                               join roles in _authContext.UserRoles on roleClaims.RoleId equals roles.RoleId
                               join permissions in _authContext.Permission on roleClaims.ClaimType equals permissions.PermissionId.ToString()
-                              where  permissions.CategoryId != 99 && roleClaims.ClaimValue != "0" && roles.UserId == userId && permissionVersions.Contains(permissions.Version)
+                              where permissions.CategoryId != 99 && roleClaims.ClaimValue != "0" && roles.UserId == userId && permissionVersions.Contains(permissions.Version)
                               select new Claim(permissions.ClaimType, roleClaims.ClaimValue, $"{permissions.HasReadOnly}.{permissions.SortOrder}")).ToList();
 
                     clients = claims.FirstOrDefault(x => x.Type == Shared.Enums.ClaimTypes.SBC_Clients_Access.ToString().Replace('_', '.'));
@@ -562,7 +563,8 @@ namespace Auth.Api.Repositories
                                 AccessToken = userToken.Value
                             }
                         };
-                    };
+                    }
+                    ;
                 }
                 catch (Exception ex)
                 {
@@ -680,7 +682,8 @@ namespace Auth.Api.Repositories
                                 RoleName = roleName ?? string.Empty
                             }
                         };
-                    };
+                    }
+                    ;
                 }
                 catch (Exception ex)
                 {

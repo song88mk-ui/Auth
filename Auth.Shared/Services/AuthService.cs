@@ -259,7 +259,8 @@ namespace Auth.Api.Services
             catch (Exception)
             {
                 return false;
-            };
+            }
+            ;
         }
 
         public async Task<List<string>> GetAspNetUserClaims(string userId)
@@ -1051,7 +1052,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                if(appId != $"{(int)Application.ClientChecklist}")
+                if (appId != $"{(int)Application.ClientChecklist}")
                     return new BaseResponse<string>
                     {
                         StatusCode = StatusCode.Unauthorized,
@@ -1065,7 +1066,7 @@ namespace Auth.Api.Services
 
                     var client = _authContext.UserTokens.FirstOrDefault(u => u.UserId == request.ClientId);
 
-                    if(client == null)
+                    if (client == null)
                     {
                         var newToken = new AppToken
                         {
@@ -1083,7 +1084,7 @@ namespace Auth.Api.Services
                     {
                         client.OperatorToken = operatorToken.ToString();
                     }
-                    
+
                     _authContext.SaveChanges();
                     scope.Complete();
 
@@ -1126,7 +1127,7 @@ namespace Auth.Api.Services
                         {
                             StatusCode = StatusCode.Success,
                             Message = $"{StatusCode.Success}",
-                            Result = clientTokens.Select(s => new ClientTokenModel { UserId = s.UserId, OperatorToken = s.OperatorToken}).ToList()
+                            Result = clientTokens.Select(s => new ClientTokenModel { UserId = s.UserId, OperatorToken = s.OperatorToken }).ToList()
                         };
                     }
 
@@ -1298,7 +1299,7 @@ namespace Auth.Api.Services
 
         private async Task ForceLogOutUsers(string userId)
         {
-            await ForceLogOutUsers(new List<string>() { userId});
+            await ForceLogOutUsers(new List<string>() { userId });
         }
         private async Task ForceLogOutUsers(List<string> userIds)
         {

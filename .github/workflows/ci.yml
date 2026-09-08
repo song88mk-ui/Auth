@@ -11,13 +11,9 @@ on:
 
 jobs:
   test:
-    name: Test ${{ matrix.project }}
+    name: Test
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        project:
-          - Auth.Tests
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -31,8 +27,11 @@ jobs:
         run: |
           dotnet nuget add source --username FlyingCockatoo --password ${{ secrets.NUGET_PASSWORD }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/FlyingCockatoo/index.json"
 
-      - name: Test ${{ matrix.project }}
-        run: dotnet test ${{ matrix.project }}/${{ matrix.project }}.csproj --configuration Release
+      - name: Test
+        run: dotnet test Auth.sln --configuration Release
+
+      - name: Format
+        run: dotnet format Auth.sln --verify-no-changes
 
   build:
     name: Build
