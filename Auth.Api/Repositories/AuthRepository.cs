@@ -930,7 +930,7 @@ namespace Auth.Api.Repositories
             IpInfo ipInfo = new IpInfo();
             try
             {
-                string info = new WebClient().DownloadString("http://ipinfo.io/" + ip);
+                string info = new WebClient().DownloadString("https://ipinfo.io/" + ip);
                 ipInfo = JsonSerializer.Deserialize<IpInfo>(info, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
                 RegionInfo myRI1 = new RegionInfo(ipInfo.Country);
                 ipInfo.Country = myRI1.TwoLetterISORegionName;
