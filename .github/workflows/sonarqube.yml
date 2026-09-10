@@ -42,7 +42,8 @@ jobs:
           export PATH=$PATH:~/.dotnet/tools
           dotnet sonarscanner begin /k:"Auth" \
                                     /d:sonar.host.url="https://sonarqube.stg.song88.com" \
-                                    /d:sonar.token="${{ secrets.SONARQUBE_TOKEN }}"
+                                    /d:sonar.token="${{ secrets.SONARQUBE_TOKEN }}" \
+                                    /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
           dotnet build --no-incremental Auth.sln
           dotnet test --collect:"XPlat Code Coverage;Format=opencover" Auth.sln
           dotnet sonarscanner end /d:sonar.token="${{ secrets.SONARQUBE_TOKEN }}"
