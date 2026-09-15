@@ -32,4 +32,5 @@ RUN apt-get update -qq && \
     rm -fr /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
+USER app
 ENTRYPOINT ["dotnet", "Auth.Api.dll"]
