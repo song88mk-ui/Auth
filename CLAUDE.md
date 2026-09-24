@@ -14,7 +14,7 @@ dotnet test Auth.Tests/Auth.Tests.csproj
 ```
 
 CI (`.github/workflows/ci.yml`) runs the test job **only on pull requests** (line 15), so a
-push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD` (line 32).
+push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD` (line 28).
 
 ## Stack
 
@@ -34,7 +34,7 @@ push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD
 - `AddDbContextPool<AuthContext>` bound to config key `Context:Auth` (`Auth.Api/Program.cs:46`).
 - **JWT bearer** (`Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.11) plus an
   `x-api-key` gate via `Auth.Api/ActionFilters/ApiKeyFilter.cs`.
-- Serilog, OpenTelemetry, `Infra.Extensions.Telemetry` 0.0.1-1, Swashbuckle 6.5.0
+- Serilog, OpenTelemetry, `Infra.Extensions.Telemetry` 0.1.0-3, Swashbuckle 6.5.0
   (+ Annotations, ReDoc).
 
 ## Conventions specific to this repo
@@ -60,9 +60,12 @@ push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD
 | `platform-final` | `Platform.Operator.API` holds an `AuthAPIKey` |
 | `api-bdd-tests` | `@auth-api` tagged features against `http://auth-api.platform.svc:3000` |
 
-The signing key, issuer (`bo.auth.api`) and API key are duplicated verbatim in the
-`appsettings.json` of all four repos. Changing any of them here is a coordinated,
-multi-repo change.
+Auth's own `Auth.Api/appsettings.json` now uses placeholders for the signing key and API key
+(`__JWT_KEY__`, `__SECURITY_API_KEY__`, commit d07a227, DEVOPS-378); the issuer is still a
+literal there. The literal signing key and issuer remain committed in the `appsettings.json` of
+backoffice-final and client-checklist, and the Auth API key in those two plus
+`../platform-final/Platform/Platform.Operator.API/appsettings.json`. Changing any of them is a
+coordinated, multi-repo change.
 
 ## Tooling notes
 
