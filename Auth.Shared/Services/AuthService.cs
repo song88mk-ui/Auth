@@ -286,11 +286,11 @@ namespace Auth.Api.Services
             }
 
         }
-        public async Task<RoleModel> GetAspNetUsersRole(AppUser request)
+        public async Task<RoleModel> GetAspNetUsersRole(AppUser user)
         {
             try
             {
-                var userRole = _authContext.UserRoles.FirstOrDefault(c => c.UserId == request.Id)?.RoleId;
+                var userRole = _authContext.UserRoles.FirstOrDefault(c => c.UserId == user.Id)?.RoleId;
                 var role = _roleManager.Roles.FirstOrDefault(c => c.Id == userRole);
 
                 if (role != null)
