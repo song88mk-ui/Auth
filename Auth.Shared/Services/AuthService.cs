@@ -280,7 +280,7 @@ namespace Auth.Api.Services
 
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -304,7 +304,7 @@ namespace Auth.Api.Services
 
                 return new RoleModel();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -394,7 +394,7 @@ namespace Auth.Api.Services
                 var roleId = _authContext.UserRoles.Where(x => x.UserId == userid);
                 return roleId.FirstOrDefault().RoleId;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -422,7 +422,7 @@ namespace Auth.Api.Services
 
                 return appRoleList;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -443,7 +443,7 @@ namespace Auth.Api.Services
                             ClaimValue = p.Claims.Value
                         }).ToList();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -462,7 +462,7 @@ namespace Auth.Api.Services
                     ClaimValue = s.Value
                 }).ToList();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -1181,15 +1181,6 @@ namespace Auth.Api.Services
             return id;
         }
 
-        private T ValidateReques<T>(T request)
-        {
-            if (typeof(T) == typeof(string))
-            {
-                var newT1 = "some text";
-            }
-
-            return (T)Convert.ChangeType("st", typeof(string));
-        }
         private List<AppUser> GetUserList(string selection, string search = "", UserSorting sortBy = UserSorting.SortByCreateDateDesc, bool isShowSuperAdmin = false)
         {
             var users = new List<AppUser>();

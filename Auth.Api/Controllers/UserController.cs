@@ -98,8 +98,6 @@ namespace Auth.Api.Controllers
                     CreatedDate = DateTime.MinValue
                 };
 
-                var isValidOldPassword = false;
-
                 var result = await _userIdentityService.UpdateAspNetUsers(userRequest, request.OldPassword);
 
                 switch (result.StatusCode)
@@ -139,8 +137,6 @@ namespace Auth.Api.Controllers
                 Claims = null,
                 CreatedDate = DateTime.MinValue
             };
-
-            var isValidOldPassword = false;
 
             var result = await _userIdentityService.UpdateAspNetUsers(userRequest);
 
@@ -279,7 +275,7 @@ namespace Auth.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"user/permission/list error: {ex.Message}");
-                return BadRequest(null);
+                return StatusCode(StatusCodes.Status500InternalServerError);
             }
         }
 

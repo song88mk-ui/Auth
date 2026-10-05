@@ -30,11 +30,11 @@ namespace Auth.Api.Repositories
         private IAuthService _userIdentityService { get; set; }
         private readonly IMemCache _memCache;
         private AuthContext _authContext { get; set; }
-        private int _sessionExpirationInSeconds = 300;
         private int _sessionExpirationInMonths = 3;
         private readonly ActivitySource _activitySource;
         private readonly Counter<long> _loginSuccessCounter;
         private readonly Counter<long> _loginFailureCounter;
+        private static readonly HttpClient _httpClient = new HttpClient();
 
         #endregion
 
@@ -72,7 +72,7 @@ namespace Auth.Api.Repositories
 
         #region Methods
 
-        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, int version = 0, long userIdRef = 0l, long mainUserIdRef = 0l)
+        private async Task<SecurityTokenDescriptor> GenerateToken(string userId, IdentityRole role, string provider, string name, string mainUserId, string nickname, int version = 0, long userIdRef = 0L, long mainUserIdRef = 0L)
         {
             var expiration = provider.Equals($"{(int)Application.ClientChecklist}") ? DateTime.MaxValue : DateTime.UtcNow.AddMonths(3);
 
@@ -254,7 +254,7 @@ namespace Auth.Api.Repositories
                     // if main user get from role claims
                     // if sub user get from user claims
                     var user = await _userManager.FindByNameAsync(content.Username);
-                    var mainUserIdRef = 0l;
+                    var mainUserIdRef = 0L;
 
                     if (user == null)
                     {
@@ -541,13 +541,6 @@ namespace Auth.Api.Repositories
                                 Message = "Session Expired.",
                                 Result = null
                             };
-                            //var currentUserToken = _authContext.UserTokens.Where(x => x.UserId == userId && x.LoginProvider == provider).FirstOrDefault();
-
-                            //userToken.SessionExpirationDate = DateTime.UtcNow.AddSeconds(_sessionExpirationInSeconds);
-                            //activity?.AddEvent(new ActivityEvent("user.tokens.update"));
-
-                            //_authContext.UserTokens.Update(userToken);
-                            //_authContext.SaveChanges();
                         }
 
                         scope.Complete();
@@ -930,7 +923,7 @@ namespace Auth.Api.Repositories
             IpInfo ipInfo = new IpInfo();
             try
             {
-                string info = new WebClient().DownloadString("https://ipinfo.io/" + ip);
+                string info = _httpClient.GetStringAsync("https://ipinfo.io/" + ip).GetAwaiter().GetResult();
                 ipInfo = JsonSerializer.Deserialize<IpInfo>(info, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
                 RegionInfo myRI1 = new RegionInfo(ipInfo.Country);
                 ipInfo.Country = myRI1.TwoLetterISORegionName;

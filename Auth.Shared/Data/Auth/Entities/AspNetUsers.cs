@@ -7,7 +7,7 @@ namespace Auth.Shared.Data.Auth.Entities
     public class AspNetUsers
     {
         public string Id { get; set; }
-        public long IdRef { get; set; } = 0l;
+        public long IdRef { get; set; } = 0L;
         public string UserName { get; set; }
         public string NormalizedUserName { get; set; }
         public string? NickName { get; set; }
