@@ -37,7 +37,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var accounts = _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText))).ToList();
+                var accounts = await _userManager.Users.AsNoTracking().Where(u => u.MainUserId == request.MainUserId && (string.IsNullOrEmpty(request.SearchText) || u.UserName.Contains(request.SearchText) || u.NickName.Contains(request.SearchText))).ToListAsync();
 
                 var permissions = (await GetPermissionList(false)).Result.Permissions ?? new List<PermissionModel>();
 
@@ -139,7 +139,7 @@ namespace Auth.Api.Services
 
                 if (!string.IsNullOrEmpty(roleId) || userGroupIdRef > 0)
                 {
-                    var role = query.FirstOrDefault();
+                    var role = await query.FirstOrDefaultAsync();
                     var claims = await GetAspNetRoleClaims(role.Id);
 
                     userGroup = new UserGroupResponse
@@ -172,7 +172,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                var query = _roleManager.Roles.AsNoTracking().ToList();
+                var query = await _roleManager.Roles.AsNoTracking().ToListAsync();
 
                 if (!string.IsNullOrEmpty(request.SearchText))
                     query = query.Where(result => result.Name.Contains(request.SearchText)).ToList();
@@ -251,7 +251,7 @@ namespace Auth.Api.Services
                 if (newSettings.Any())
                 {
                     await _authContext.UserClaims.AddRangeAsync(newSettings);
-                    _authContext.SaveChanges();
+                    await _authContext.SaveChangesAsync();
                 }
 
                 return true;
@@ -268,7 +268,7 @@ namespace Auth.Api.Services
             try
             {
                 var result = new List<string>();
-                var userClaims = _authContext.UserClaims.AsNoTracking().Where(c => c.UserId == userId).ToList();
+                var userClaims = await _authContext.UserClaims.AsNoTracking().Where(c => c.UserId == userId).ToListAsync();
 
                 if (userClaims != null)
                 {
@@ -290,8 +290,8 @@ namespace Auth.Api.Services
         {
             try
             {
-                var userRole = _authContext.UserRoles.FirstOrDefault(c => c.UserId == user.Id)?.RoleId;
-                var role = _roleManager.Roles.FirstOrDefault(c => c.Id == userRole);
+                var userRole = (await _authContext.UserRoles.FirstOrDefaultAsync(c => c.UserId == user.Id))?.RoleId;
+                var role = await _roleManager.Roles.FirstOrDefaultAsync(c => c.Id == userRole);
 
                 if (role != null)
                 {
@@ -319,10 +319,10 @@ namespace Auth.Api.Services
                 var result = new UserListResponse();
                 if (users.Any())
                 {
-                    var userGroups = _authContext.UserRoles.Join(_authContext.Roles,
+                    var userGroups = await _authContext.UserRoles.Join(_authContext.Roles,
                                      userRole => userRole.RoleId,
                                      role => role.Id,
-                                     (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName, role.UserGroupIdRef }).ToList();
+                                     (userRole, role) => new { userRole.UserId, role.Id, role.Name, role.NormalizedName, role.UserGroupIdRef }).ToListAsync();
 
                     result.Users = users.Join(userGroups,
                                user => user.Id,
@@ -392,7 +392,7 @@ namespace Auth.Api.Services
             try
             {
                 var roleId = _authContext.UserRoles.Where(x => x.UserId == userid);
-                return roleId.FirstOrDefault().RoleId;
+                return (await roleId.FirstOrDefaultAsync())?.RoleId;
             }
             catch (Exception)
             {
@@ -405,7 +405,7 @@ namespace Auth.Api.Services
             try
             {
                 var appRoleList = new List<RoleModel>();
-                var result = _roleManager.Roles.Select(x => new { x.Id, x.Name, x.NormalizedName, x.ConcurrencyStamp });
+                var result = await _roleManager.Roles.Select(x => new { x.Id, x.Name, x.NormalizedName, x.ConcurrencyStamp }).ToListAsync();
 
                 foreach (var tmprole in result)
                 {
@@ -473,7 +473,7 @@ namespace Auth.Api.Services
         {
             try
             {
-                long newIdRef = Convert.ToInt64(_userManager.Users.Max(u => u.IdRef) + 1);
+                long newIdRef = Convert.ToInt64((await _userManager.Users.MaxAsync(u => u.IdRef)) + 1);
 
                 var user = new AppUser
                 {
@@ -531,7 +531,7 @@ namespace Auth.Api.Services
                         var addRole = await _userManager.AddToRoleAsync(user, request.RoleName);
                     }
 
-                    _authContext.SaveChanges();
+                    await _authContext.SaveChangesAsync();
                     scope.Complete();
                 }
                 return new BaseResponse<long>
@@ -583,7 +583,7 @@ namespace Auth.Api.Services
                 {
                     if (request.Status.ToUpper() == "Locked".ToUpper() && user.LockoutEnd == null)
                     {
-                        userToken = _authContext.UserTokens.FirstOrDefault(x => x.UserId == userId);
+                        userToken = await _authContext.UserTokens.FirstOrDefaultAsync(x => x.UserId == userId);
 
                         if (userToken != null)
                         {
@@ -736,7 +736,7 @@ namespace Auth.Api.Services
                     await _userManager.AddClaimsAsync(user, claims);
                 }
 
-                _authContext.SaveChanges();
+                await _authContext.SaveChangesAsync();
 
                 return new BaseResponse<bool>
                 {
@@ -840,7 +840,7 @@ namespace Auth.Api.Services
                         }
                     }
 
-                    _authContext.SaveChanges();
+                    await _authContext.SaveChangesAsync();
                     scope.Complete();
                 }
 
@@ -934,8 +934,8 @@ namespace Auth.Api.Services
         {
             try
             {
-                var roleName = _userManager.GetRolesAsync(user).Result.FirstOrDefault();
-                var role = _roleManager.FindByNameAsync(roleName).Result;
+                var roleName = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
+                var role = await _roleManager.FindByNameAsync(roleName);
 
                 return new BaseResponse<IdentityRole>
                 {
@@ -1024,7 +1024,7 @@ namespace Auth.Api.Services
                     }
                 };
 
-                var result = _authContext.ReportRoles.FirstOrDefault(r => r.RoleId == request.RoleId && r.ClaimType == request.ClaimType);
+                var result = await _authContext.ReportRoles.FirstOrDefaultAsync(r => r.RoleId == request.RoleId && r.ClaimType == request.ClaimType);
 
                 var role = await _roleManager.FindByIdAsync(request.RoleId);
 
@@ -1059,12 +1059,12 @@ namespace Auth.Api.Services
                         Message = $"{StatusCode.Unauthorized}"
                     };
 
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                 {
                     var sessionExpirationDate = DateTime.MaxValue;
                     var operatorToken = Guid.NewGuid();
 
-                    var client = _authContext.UserTokens.FirstOrDefault(u => u.UserId == request.ClientId);
+                    var client = await _authContext.UserTokens.FirstOrDefaultAsync(u => u.UserId == request.ClientId);
 
                     if (client == null)
                     {
@@ -1085,7 +1085,7 @@ namespace Auth.Api.Services
                         client.OperatorToken = operatorToken.ToString();
                     }
 
-                    _authContext.SaveChanges();
+                    await _authContext.SaveChangesAsync();
                     scope.Complete();
 
                     return new BaseResponse<string>
@@ -1117,17 +1117,17 @@ namespace Auth.Api.Services
                         Message = $"{StatusCode.Unauthorized}"
                     };
 
-                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
+                using (var scope = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled))
                 {
                     var clientTokens = _authContext.UserTokens.Where(u => u.LoginProvider == appId && string.IsNullOrEmpty(u.Value));
 
-                    if (clientTokens.Any())
+                    if (await clientTokens.AnyAsync())
                     {
                         return new BaseResponse<List<ClientTokenModel>>
                         {
                             StatusCode = StatusCode.Success,
                             Message = $"{StatusCode.Success}",
-                            Result = clientTokens.Select(s => new ClientTokenModel { UserId = s.UserId, OperatorToken = s.OperatorToken }).ToList()
+                            Result = await clientTokens.Select(s => new ClientTokenModel { UserId = s.UserId, OperatorToken = s.OperatorToken }).ToListAsync()
                         };
                     }
 
@@ -1296,11 +1296,11 @@ namespace Auth.Api.Services
         {
             var userTokens = _authContext.UserTokens.AsNoTracking().Where(x => userIds.Contains(x.UserId));
 
-            if (userTokens.Any())
+            if (await userTokens.AnyAsync())
             {
                 _authContext.UserTokens.RemoveRange(userTokens);
 
-                _authContext.SaveChanges();
+                await _authContext.SaveChangesAsync();
             }
         }
         #endregion
