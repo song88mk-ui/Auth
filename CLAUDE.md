@@ -1,24 +1,33 @@
-# Auth
+# CLAUDE.md — Auth
+
+<!-- song88:standing-rules:begin -->
+## Standing rules (every prompt, before anything else)
+
+Shared by every song88 repo. The canonical text is `../song88-claude/standing-rules/STANDING-RULES.md`:
+edit it there and run `../song88-claude/standing-rules/sync_standing_rules.py`, never edit this block by hand. A `UserPromptSubmit`
+hook in `.claude/settings.json` re-injects these rules on every prompt.
+
+1. **Read this repo's CLAUDE.md and AGENTS.md first.**
+2. **Fetch latest before investigating.** Run `git fetch origin` and compare with origin/main for this repo and every sibling repo you read, before citing file contents or repo or deployment state as fact. A local checkout can be hundreds of commits behind. When you cannot or should not pull, read files with `git show origin/main:<path>`, and say so explicitly if you did not check.
+3. **Trace in the code, never from memory.** Search the repo and its docs, trace the feature end to end, and cite `file:line`.
+4. **Label every claim verified, assumption or unknown.** Never guess.
+5. **Explain the plan and wait for approval before any code change.** Then make the smallest change that does the job.
+6. **Production is read-only.** Do not run queries, deploy, change schema or invalidate caches unless explicitly instructed.
+7. **Update docs and README in the same change** whenever the change affects what they describe.
+8. **Every SQL script must be idempotent.** Re-running it is a no-op with the same end state.
+9. **Do not modify a sibling repo as a side effect of work here.** Siblings are read-only references unless the user asks for a change in that repo.
+10. **Never print, log or commit a secret.** Mask it if it must appear in a log line.
+11. **A new project or service ships with tests** in the repo's existing test framework.
+12. **Commit, push or open a PR only when explicitly asked.** "Implement it" authorizes local edits only.
+<!-- song88:standing-rules:end -->
+
+## What this repo is
 
 Identity and token service for the song88 platform. It owns the JWT that **four other repos**
 validate, so a change to token shape, signing key, or issuer breaks them silently. See
 `../INTEGRATION-MAP.md` before touching the token path.
 
-Deployed as `auth-api` in the `platform` namespace.
-
-## Commands
-
-```
-dotnet build Auth.sln
-dotnet test Auth.Tests/Auth.Tests.csproj
-```
-
-CI (`.github/workflows/ci.yml`) runs the test job **only on pull requests** (line 15), so a
-push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD` (line 28).
-
-## Stack
-
-.NET 10 / C# 14, three projects:
+Deployed as `auth-api` in the `platform` namespace. .NET 10 / C# 14, three projects:
 
 | Project | SDK | Role |
 |---|---|---|
@@ -37,21 +46,19 @@ push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD
 - Serilog, OpenTelemetry, `Infra.Extensions.Telemetry` 0.1.0-3, Swashbuckle 6.5.0
   (+ Annotations, ReDoc).
 
-## Conventions specific to this repo
+## Build / test
 
-- **`Auth.Tests` references `Auth.Shared`, not `Auth.Api`.** Nothing in the API project is
-  under test today — the suite is a single file, `Auth.Tests/Utilities/JwtParserTests.cs`. Testing a
-  controller or filter requires adding the project reference first.
-- **There are no EF migrations.** `Auth.Shared` contains no EF `Migrations` folder; the schema lives
-  in `../infrastructure/flyway/migrations/dev/V1__Baseline.sql` under the `-- Auth` section
-  (lines 1-119). Do not scaffold migrations without deciding who owns the schema — Flyway
-  currently does.
-- Nullable warnings are broadly suppressed in `Auth.Api/Auth.Api.csproj` (`CS8618;CS8602;CS8604`).
-  Do not treat their absence as evidence the code is null-safe.
-- Uses `AddNewtonsoftJson` for MVC serialization while other repos use `System.Text.Json`.
-  Check which serializer applies before reasoning about a payload shape.
+```
+dotnet build Auth.sln
+dotnet test Auth.Tests/Auth.Tests.csproj
+```
 
-## Downstream consumers — do not break these
+CI (`.github/workflows/ci.yml`) runs the test job **only on pull requests** (line 15), so a
+push to `main` runs no tests. Restore needs the private feed and `NUGET_PASSWORD` (line 28).
+
+## Critical rules
+
+**Downstream consumers — do not break these.**
 
 | Consumer | What it depends on |
 |---|---|
@@ -67,8 +74,25 @@ backoffice-final and client-checklist, and the Auth API key in those two plus
 `../platform-final/Platform/Platform.Operator.API/appsettings.json`. Changing any of them is a
 coordinated, multi-repo change.
 
-## Tooling notes
+**There are no EF migrations.** `Auth.Shared` contains no EF `Migrations` folder; the schema lives
+in `../infrastructure/flyway/migrations/dev/V1__Baseline.sql` under the `-- Auth` section
+(lines 1-119). Do not scaffold migrations without deciding who owns the schema — Flyway
+currently does.
 
-dotnet-claude-kit defaults do not match this repo: it uses **xUnit 2.5.3, not v3**, has no
-central package management, and is controller-based rather than minimal API. See the root
-`../CLAUDE.md` for the full override list.
+## Conventions
+
+- **`Auth.Tests` references both `Auth.Api` and `Auth.Shared`** (`Auth.Tests/Auth.Tests.csproj:24-25`).
+  `TestSupport/AuthTestHost.cs` builds `AuthService` and `AuthRepository` as `Program.cs` does, on an
+  EF Core in-memory database per test. Tests: `Utilities/JwtParserTests.cs`,
+  `Services/AuthServiceTests.cs`, `Repositories/AuthRepositoryLoginTests.cs` (DEVOPS-378).
+- Nullable warnings are broadly suppressed in `Auth.Api/Auth.Api.csproj` (`CS8618;CS8602;CS8604`).
+  Do not treat their absence as evidence the code is null-safe.
+- Uses `AddNewtonsoftJson` for MVC serialization while other repos use `System.Text.Json`.
+  Check which serializer applies before reasoning about a payload shape.
+- dotnet-claude-kit defaults do not match this repo: it uses **xUnit 2.5.3, not v3**, has no
+  central package management, and is controller-based rather than minimal API.
+
+## See also
+
+`../CLAUDE.md` (workspace, full dotnet-claude-kit override list) · `../INTEGRATION-MAP.md` ·
+`.claude/skills/jira-updates/SKILL.md`
