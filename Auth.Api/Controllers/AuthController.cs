@@ -65,7 +65,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError($"authentication/login error: {ex.Message}");
+                _logger.LogError(ex, "authentication/login error");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -110,7 +110,7 @@ namespace Auth.Api.Controllers
                 catch (Exception ex)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                    _logger.LogError($"authentication/access error: {ex.Message}");
+                    _logger.LogError(ex, "authentication/access error");
                     return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
                 }
             }
@@ -176,7 +176,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError($"authentication/operator error: {ex.Message}");
+                _logger.LogError(ex, "authentication/operator error");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -211,7 +211,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError($"authentication/security error: {ex.Message}");
+                _logger.LogError(ex, "authentication/security error");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -251,7 +251,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError($"authentication/logout error: {ex.Message}");
+                _logger.LogError(ex, "authentication/logout error");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
@@ -276,7 +276,7 @@ namespace Auth.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError($"authentication/online error: {ex.Message}");
+                _logger.LogError(ex, "authentication/online error");
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
