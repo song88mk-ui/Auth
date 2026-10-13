@@ -104,4 +104,4 @@ currently does.
 ## See also
 
 `../CLAUDE.md` (workspace, full dotnet-claude-kit override list) · `../INTEGRATION-MAP.md` ·
-`.claude/skills/jira-updates/SKILL.md`
+`.claude/skills/jira-updates/SKILL.md` · `AGENTS.md`
